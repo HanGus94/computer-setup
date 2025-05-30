@@ -171,6 +171,34 @@ $ApplicationCategories = @{
             Essential = $false
             Description = "Digital game distribution platform"
             PackageManager = "winget"
+            SilentArgs = @("--lang=enUS", "--installpath=`"C:\Program Files (x86)\Battle.net`"")
+            CustomDetection = {
+                # Check for Battle.net installation using multiple methods
+                $installPaths = @(
+                    "${env:ProgramFiles(x86)}\Battle.net\Battle.net.exe",
+                    "${env:ProgramFiles}\Battle.net\Battle.net.exe"
+                )
+                
+                foreach ($path in $installPaths) {
+                    if (Test-Path $path) {
+                        return $true
+                    }
+                }
+                
+                # Check registry
+                $regPaths = @(
+                    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Battle.net",
+                    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Battle.net"
+                )
+                
+                foreach ($regPath in $regPaths) {
+                    if (Test-Path $regPath) {
+                        return $true
+                    }
+                }
+                
+                return $false
+            }
         }
     )
 
@@ -346,8 +374,22 @@ function Install-Scoop {
 }
 
 function Test-ApplicationInstalled {
-    param([string]$AppId)
+    param(
+        [string]$AppId,
+        [scriptblock]$CustomDetection = $null
+    )
     
+    # Use custom detection if provided
+    if ($CustomDetection) {
+        try {
+            return & $CustomDetection
+        } catch {
+            Write-StatusMessage "Custom detection failed for $AppId`: $($_.Exception.Message)" "Warning"
+            # Fall back to winget detection
+        }
+    }
+    
+    # Default winget detection
     try {
         $result = winget list --id $AppId --exact 2>$null
         return $LASTEXITCODE -eq 0
@@ -362,6 +404,8 @@ function Install-Application {
     $appName = $App.Name
     $appId = $App.Id
     $packageManager = if ($App.PackageManager) { $App.PackageManager } else { "winget" }
+    $customDetection = $App.CustomDetection
+    $silentArgs = $App.SilentArgs
     
     Write-StatusMessage "Installing $appName using $packageManager..." "Info"
     
@@ -377,7 +421,7 @@ function Install-Application {
                 $isInstalled = $false
             }
         } else {
-            $isInstalled = Test-ApplicationInstalled -AppId $appId
+            $isInstalled = Test-ApplicationInstalled -AppId $appId -CustomDetection $customDetection
         }
         
         if ($isInstalled) {
@@ -417,6 +461,12 @@ function Install-Application {
                 "--accept-source-agreements"
             )
             
+            # Add custom silent arguments if provided
+            if ($silentArgs) {
+                $installArgs += "--override"
+                $installArgs += ($silentArgs -join " ")
+            }
+            
             if ($Force) {
                 $installArgs += "--force"
             }
@@ -431,6 +481,15 @@ function Install-Application {
                 return $true
             } else {
                 Write-StatusMessage "Failed to install $appName via Winget (exit code: $($process.ExitCode))" "Error"
+                
+                # For Battle.net, provide additional troubleshooting info
+                if ($appId -eq "Blizzard.BattleNet") {
+                    Write-StatusMessage "Battle.net installation troubleshooting:" "Info"
+                    Write-StatusMessage "• Make sure you have enough disk space" "Info"
+                    Write-StatusMessage "• Check if another installer is running" "Info"
+                    Write-StatusMessage "• Try running as administrator" "Info"
+                }
+                
                 return $false
             }
         }
