@@ -267,13 +267,6 @@ $ApplicationCategories = @{
             PackageManager = "winget"
         },
         @{
-            Name = "Files"
-            Id = "FilesCommunity.Files"
-            Essential = $false
-            Description = "Files"
-            PackageManager = "winget"
-        },
-        @{
             Name = "Teracopy"
             Id = "CodeSector.TeraCopy"
             Essential = $false
