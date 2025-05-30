@@ -1,235 +1,163 @@
-# Computer Setup Scripts
+# Computer Setup Automation
 
-Automated deployment scripts for setting up a new computer with customized configurations.
+This repository contains PowerShell scripts to automate the setup of a new Windows computer with development tools, configurations, and Windows features.
 
-## 🚀 Quick Start
+## Features
 
-**One-Command Setup** - Run this for complete automation:
+### 🔧 System Setup
+- **Windows Features**: Enable Hyper-V, Windows Sandbox, and WSL2 with all management tools
+- **System Dependencies**: Install Visual C++ redistributables and runtime libraries
+- **Applications**: Install essential applications via Windows Package Manager (Winget)
+- **Specialized Tools**: Install tools from GitHub releases (Wabbajack, etc.)
+
+### ⚙️ Configuration Deployment
+- **PowerShell Profile**: Enhanced profile with useful aliases and functions
+- **Firefox userChrome.css**: Custom Firefox interface modifications  
+- **Sidebery**: Firefox sidebar tab management configuration
+- **OBS Studio**: Multi-profile portable OBS installations with plugins
+
+## Quick Start
+
+1. **Run the main deployment script** (requires PowerShell 7+):
+   ```powershell
+   .\deploy-files.ps1
+   ```
+
+2. **Or run individual components**:
+   ```powershell
+   # Enable Windows features (requires admin)
+   .\installers\Enable-WindowsFeatures.ps1
+   
+   # Install system dependencies
+   .\installers\Install-Dependencies.ps1
+   
+   # Install applications
+   .\installers\Install-Applications.ps1
+   
+   # Install specialized tools
+   .\installers\Install-Tools.ps1
+   ```
+
+## Scripts Overview
+
+### Core Deployment
+- **`setup.ps1`**: Bootstrap script that installs PowerShell 7+ if needed
+- **`deploy-files.ps1`**: Main orchestrator that runs all deployment stages
+
+### Windows Features (`installers/Enable-WindowsFeatures.ps1`)
+Enables advanced Windows features with all sub-components:
+- **Hyper-V**: Full hypervisor platform with management tools and PowerShell module
+- **Windows Sandbox**: Isolated environment for testing applications
+- **WSL2**: Windows Subsystem for Linux with full kernel support
+
+**Requirements**: Administrator privileges, compatible Windows edition
+**Features**: Hardware virtualization detection, edition compatibility checking, reboot handling
+
+### System Dependencies (`installers/Install-Dependencies.ps1`)
+Installs required runtime libraries:
+- Microsoft Visual C++ 2015-2022 Redistributables (x64 & x86)
+- Future: Additional runtime libraries as needed
+
+### Applications (`installers/Install-Applications.ps1`)
+Installs applications via package managers:
+- Primary: Windows Package Manager (Winget)
+- Fallback: Scoop package manager
+- Configurable application list
+
+### Specialized Tools (`installers/Install-Tools.ps1`)
+Downloads and installs tools from GitHub releases:
+- Wabbajack modding tool
+- Creates desktop and Start Menu shortcuts
+- Portable installations to C:\Tools
+
+### Configuration Files
+- **`configs/powershell/`**: PowerShell profile with enhanced features
+- **`configs/firefox/`**: userChrome.css and Sidebery configuration
+- **`configs/obs/`**: OBS Studio portable setup with multiple profiles
+
+## Architecture
+
+### Shared Module (`modules/ComputerSetup.psm1`)
+Provides common functionality across all scripts:
+- Consistent status messaging and logging
+- File download and GitHub API interactions
+- Version comparison and file backup utilities
+- Package manager detection and testing
+- Admin privilege detection
+
+### Design Principles
+- **Modular**: Each script handles a specific concern
+- **Consistent**: Shared module ensures uniform behavior
+- **Robust**: Comprehensive error handling and validation
+- **Flexible**: Skip flags and configuration options
+- **Informative**: Detailed status messages and summaries
+
+## Usage Examples
+
+### Basic Setup
 ```powershell
-.\setup.ps1
-```
-
-This single command will automatically:
-1. Install PowerShell 7+ if missing
-2. Install system dependencies (Visual C++ redistributables)
-3. Install common applications via Winget (Firefox, Cursor AI, Steam, etc.)
-4. Deploy PowerShell profiles
-5. Set up Firefox customizations (after Firefox is installed)
-6. Install OBS Studio with multiple profiles
-
-**That's it!** No manual intervention required - just run `setup.ps1` and everything else happens automatically.
-
-## 📁 Script Overview
-
-### **`setup.ps1`** - Bootstrap Script
-- Checks for PowerShell 7+ and installs if missing
-- Launches the main deployment script
-- Works with Windows PowerShell 5.1+
-
-### **`deploy-files.ps1`** - Main Deployment Engine
-- Handles version checking and smart deployment
-- Supports multiple file types and script execution
-- Creates backups and provides detailed instructions
-
-### **`Install-Dependencies.ps1`** - System Dependencies
-- Installs Microsoft Visual C++ 2015-2022 redistributables (x64 + x86)
-- Required for OBS Studio and most plugins
-- Idempotent - safe to run multiple times
-- Checks admin privileges and existing installations
-
-```powershell
-# Run dependencies separately if needed
-.\Install-Dependencies.ps1
-
-# Force reinstall dependencies
-.\Install-Dependencies.ps1 -Force
-
-# Skip Visual C++ installation
-.\Install-Dependencies.ps1 -SkipVCRedist
-```
-
-### **`Install-Applications.ps1`** - Application Installer
-- Installs common applications using Windows Package Manager (Winget) and Scoop
-- Automatically installs Winget if missing
-- Installs Scoop package manager with essential buckets
-- **Dual Package Manager Support** - Each app specifies whether to use Winget or Scoop
-- Configurable application categories (browsers, development, media, utilities)
-- Idempotent - detects existing installations
-
-```powershell
-# Install all default applications + Scoop
-.\Install-Applications.ps1
-
-# Install only essential applications (Firefox + 7-Zip)
-.\Install-Applications.ps1 -OnlyEssential
-
-# Skip specific categories and Scoop
-.\Install-Applications.ps1 -SkipDevelopment -SkipMedia -SkipScoop
-
-# Install custom application list
-.\Install-Applications.ps1 -Applications "Mozilla.Firefox","Microsoft.VisualStudioCode"
-
-# Force reinstall all applications
-.\Install-Applications.ps1 -Force
-```
-
-**Supported Application Categories:**
-- **Browsers**: Firefox (Winget)
-- **Development**: Cursor AI, Git, Windows Terminal (Winget) + Node.js, Python (Scoop)
-- **Media**: VLC Media Player (Winget)
-- **Gaming**: Steam, Epic Games, Battle.net, GoG Galaxy (Winget)
-- **Utilities**: 7-Zip, Notepad++, PowerToys (Winget) + ripgrep, fd (Scoop)
-
-### **`obs/setup-obs.ps1`** - OBS Multi-Profile Setup
-- Downloads OBS Studio once, installs to multiple profiles
-- Manages plugins with version tracking
-- Creates desktop shortcuts and start menu entries
-- Supports GitHub, direct URL, and OBS Project forum downloads
-
-```powershell
-# Install specific profiles
-.\obs\setup-obs.ps1 -Profiles streaming,recording
-
-# Use GitHub token to avoid rate limits
-.\obs\setup-obs.ps1 -GitHubToken "your_token_here"
-
-# Keep downloaded files for debugging
-.\obs\setup-obs.ps1 -KeepFiles
-```
-
-## 📂 Directory Structure
-
-```
-computer-setup/
-├── setup.ps1                    # Bootstrap script
-├── deploy-files.ps1             # Main deployment engine
-├── Install-Dependencies.ps1     # System dependencies installer
-├── Install-Applications.ps1     # Application installer via Winget
-├── README.md                    # This file
-├── powershell/                  # PowerShell profiles
-├── firefox/                     # Firefox customizations
-│   ├── userChrome.css
-│   └── sidebery-data.json
-└── obs/                         # OBS Studio setup
-    ├── setup-obs.ps1
-    ├── obs-profiles.json
-    └── obs-profiles-EXAMPLE.json
-```
-
-## 🔧 Configuration Files
-
-### **PowerShell Profiles** (`powershell/`)
-- Custom PowerShell configurations with version tracking
-- Deployed to `Documents\PowerShell\Microsoft.PowerShell_profile.ps1`
-
-### **Firefox Customizations** (`firefox/`)
-- **userChrome.css**: Custom Firefox UI styling
-- **sidebery-data.json**: Tree-style tabs configuration
-
-### **OBS Profiles** (`obs/obs-profiles.json`)
-- Multi-profile OBS Studio configurations
-- Plugin management with version tracking
-- See `obs-profiles-EXAMPLE.json` for all download methods
-
-## 🎯 Plugin Download Methods
-
-The OBS setup supports three plugin download methods:
-
-### 1. **GitHub Releases** (Recommended)
-```json
-{
-  "downloadMethod": "github",
-  "repo": "exeldro/obs-source-dock",
-  "filePattern": "*.zip"
-}
-```
-
-### 2. **Direct URL**
-```json
-{
-  "downloadMethod": "direct",
-  "url": "https://example.com/plugin.zip",
-  "filename": "plugin.zip"
-}
-```
-
-### 3. **OBS Project Forum**
-```json
-{
-  "downloadMethod": "obsproject",
-  "resourceId": "913",
-  "version": "6257",
-  "fileId": "113467",
-  "filename": "move.zip"
-}
-```
-
-## ⚡ Performance Features
-
-- **Smart Version Checking**: Only deploys newer versions
-- **Shared Downloads**: OBS downloaded once for all profiles
-- **Idempotent Operations**: Safe to run multiple times
-- **Backup Creation**: Existing files are backed up automatically
-- **Plugin Caching**: Downloaded plugins cached per profile
-
-## 🔐 Security Considerations
-
-- Scripts check for PowerShell 7+ requirements
-- Dependencies installer warns if not running as administrator
-- All downloads use HTTPS with verification
-- GitHub token support for authenticated API access
-
-## 📋 Common Usage Patterns
-
-### Fresh Computer Setup
-```powershell
-# Complete setup (recommended)
-.\setup.ps1
-```
-
-### Updating Existing Setup
-```powershell
-# Update everything
+# Run complete setup
 .\deploy-files.ps1
 
-# Force update everything
+# Run with force flag to reinstall everything
 .\deploy-files.ps1 -Force
-
-# Update only OBS profiles
-.\obs\setup-obs.ps1
-
-# Install new dependencies
-.\Install-Dependencies.ps1
-
-# Install applications only
-.\Install-Applications.ps1
 ```
 
-### Development/Testing
+### Individual Components
 ```powershell
-# Test with debug mode
-.\obs\setup-obs.ps1 -KeepFiles
+# Enable Windows features only
+.\installers\Enable-WindowsFeatures.ps1
 
-# Install single profile
-.\obs\setup-obs.ps1 -Profiles testing
+# Skip specific features
+.\installers\Enable-WindowsFeatures.ps1 -SkipHyperV -SkipWindowsSandbox
 
-# Skip dependencies
-.\Install-Dependencies.ps1 -SkipVCRedist
+# Install tools to custom directory
+.\installers\Install-Tools.ps1 -ToolsDirectory "D:\MyTools"
 
-# Install only essential applications
-.\Install-Applications.ps1 -OnlyEssential
-
-# Skip certain application categories
-.\Install-Applications.ps1 -SkipDevelopment -SkipMedia
+# Skip specific OBS profiles
+.\configs\obs\setup-obs.ps1 -SkipTesting -SkipRecording
 ```
 
-## 🛠️ Requirements
+## Requirements
 
-- **Windows 10/11**
-- **PowerShell 5.1+** (script auto-upgrades to PowerShell 7+)
-- **Internet connection** for downloads
-- **Administrator privileges** recommended for dependencies
+- **PowerShell 7.0+** (setup.ps1 can install this automatically)
+- **Windows 10/11** (some features require specific editions)
+- **Administrator privileges** (for Windows features and some installations)
+- **Internet connection** (for downloading components)
 
-## 🤝 Contributing
+## Post-Installation
 
-Feel free to customize the configuration files and scripts for your specific needs. The system is designed to be modular and extensible.
+### Windows Features
+After enabling Windows features, a reboot may be required. Once complete:
+- **Hyper-V Manager**: Available in Administrative Tools
+- **Windows Sandbox**: Available in Start Menu  
+- **WSL2**: Install distributions from Microsoft Store or via `wsl --install`
+
+### Development Environment
+- PowerShell profile loads automatically in new sessions
+- Firefox with custom interface and Sidebery tab management
+- OBS Studio with optimized profiles for different use cases
+- Specialized tools available via desktop shortcuts
+
+## Troubleshooting
+
+### Common Issues
+- **PowerShell version**: Use setup.ps1 to install PowerShell 7+
+- **Execution policy**: Run `Set-ExecutionPolicy RemoteSigned` as administrator
+- **Windows features fail**: Check hardware virtualization support in BIOS
+- **Downloads fail**: Check internet connection and firewall settings
+
+### Logs and Status
+All scripts provide detailed status messages during execution:
+- 🟢 **[OK]**: Successful operations
+- 🔵 **[INFO]**: Informational messages  
+- 🟡 **[WARN]**: Warnings (non-critical)
+- 🔴 **[ERROR]**: Critical errors
+
+## Contributing
+
+This automation system is designed for personal use but can be adapted:
+1. Modify configuration files in `configs/` directories
+2. Update application lists in installer scripts
+3. Add new tools to `Install-Tools.ps1` configuration
+4. Extend shared module functionality as needed

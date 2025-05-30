@@ -145,6 +145,21 @@ $DeploymentConfig = @{
             "Tools are portable and ready for use"
         )
     }
+    WindowsFeatures = @{
+        SourcePath = ".\installers"
+        ScriptName = "Enable-WindowsFeatures.ps1"
+        RequirePowerShell7 = $true
+        AlwaysRun = $true
+        PostDeploymentInstructions = @(
+            "Windows features enablement completed",
+            "Enabled features may include:",
+            "• Hyper-V - Full hypervisor platform with management tools",
+            "• Windows Sandbox - Isolated environment for testing applications",
+            "• WSL2 - Windows Subsystem for Linux with full kernel support",
+            "⚠️ A system restart may be required to complete feature installation",
+            "After restart, features will be fully available for use"
+        )
+    }
 }
 
 # Deploy a single file type
@@ -301,6 +316,7 @@ function Start-Deployment {
     
     # Define deployment order to ensure dependencies are installed first
     $deploymentOrder = @(
+        "WindowsFeatures",
         "SystemDependencies",
         "Applications",
         "PowerShellProfile", 
