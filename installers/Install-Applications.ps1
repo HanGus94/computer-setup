@@ -230,6 +230,62 @@ $ApplicationCategories = @{
             Essential = $false
             Description = "Windows shell replacement"
             PackageManager = "winget"
+        },
+        @{
+            Name = "Elgato Wavelink"
+            Id = "Elgato.Wavelink"
+            Essential = $false
+            Description = "Elgato Wavelink"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Elgato Stream Deck"
+            Id = "Elgato.StreamDeck"
+            Essential = $false
+            Description = "Elgato Stream Deck"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Elgato Camera Hub"
+            Id = "Elgato.CameraHub"
+            Essential = $false
+            Description = "Elgato Camera Hub"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Google Drive"
+            Id = "Google.GoogleDrive"
+            Essential = $false
+            Description = "Google Drive"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Flameshot"
+            Id = "Flameshot.Flameshot"
+            Essential = $false
+            Description = "Flameshot"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Files"
+            Id = "FilesCommunity.Files"
+            Essential = $false
+            Description = "Files"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "This is Win 11"
+            Id = "thisiswin11"
+            Essential = $false
+            Description = "This is Win 11"
+            PackageManager = "scoop"
+        },
+        @{
+            Name = "Teracopy"
+            Id = "CodeSector.TeraCopy"
+            Essential = $false
+            Description = "Teracopy"
+            PackageManager = "winget"
         }
     )
 }
