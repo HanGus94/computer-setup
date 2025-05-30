@@ -12,10 +12,10 @@
     Force deployment even if target versions are the same or newer
 
 .EXAMPLE
-    .\setup.ps1
+    .\deploy-files.ps1
     
 .EXAMPLE
-    .\setup.ps1 -Force
+    .\deploy-files.ps1 -Force
 #>
 
 param(
@@ -23,10 +23,13 @@ param(
     [switch]$Force
 )
 
+# Import the shared module
+Import-Module (Join-Path $PSScriptRoot "modules\ComputerSetup.psm1") -Force
+
 # Configuration for different deployment types
 $DeploymentConfig = @{
     PowerShellProfile = @{
-        SourcePath = ".\powershell"
+        SourcePath = ".\configs\powershell"
         FilePattern = "*profile*.ps1"
         GetTargetPath = {
             $documentsPath = [Environment]::GetFolderPath('MyDocuments')
@@ -40,7 +43,7 @@ $DeploymentConfig = @{
         )
     }
     FirefoxUserChrome = @{
-        SourcePath = ".\firefox"
+        SourcePath = ".\configs\firefox"
         FilePattern = "userChrome.css"
         GetTargetPath = {
             $firefoxProfiles = Get-ChildItem "$env:APPDATA\Mozilla\Firefox\Profiles" -Directory -ErrorAction SilentlyContinue
@@ -59,7 +62,7 @@ $DeploymentConfig = @{
         )
     }
     SideberyData = @{
-        SourcePath = ".\firefox"
+        SourcePath = ".\configs\firefox"
         FilePattern = "sidebery-data.json"
         GetTargetPath = {
             $firefoxProfiles = Get-ChildItem "$env:APPDATA\Mozilla\Firefox\Profiles" -Directory -ErrorAction SilentlyContinue
@@ -84,7 +87,7 @@ $DeploymentConfig = @{
         )
     }
     OBSPortable = @{
-        SourcePath = ".\obs"
+        SourcePath = ".\configs\obs"
         ScriptName = "setup-obs.ps1"
         RequirePowerShell7 = $true
         AlwaysRun = $true
@@ -99,7 +102,7 @@ $DeploymentConfig = @{
         )
     }
     SystemDependencies = @{
-        SourcePath = "."
+        SourcePath = ".\installers"
         ScriptName = "Install-Dependencies.ps1"
         RequirePowerShell7 = $true
         AlwaysRun = $true
@@ -113,7 +116,7 @@ $DeploymentConfig = @{
         )
     }
     Applications = @{
-        SourcePath = "."
+        SourcePath = ".\installers"
         ScriptName = "Install-Applications.ps1"
         RequirePowerShell7 = $true
         AlwaysRun = $true
@@ -128,85 +131,20 @@ $DeploymentConfig = @{
             "Some applications may require a restart to work properly"
         )
     }
-}
-
-# Simple semantic version comparison
-function Compare-Version {
-    param([string]$Version1, [string]$Version2)
-    
-    if (-not $Version1 -and -not $Version2) { return 0 }
-    if (-not $Version1) { return -1 }
-    if (-not $Version2) { return 1 }
-    
-    $v1 = $Version1 -replace '^v?', '' -split '\.' | ForEach-Object { [int]$_ }
-    $v2 = $Version2 -replace '^v?', '' -split '\.' | ForEach-Object { [int]$_ }
-    
-    for ($i = 0; $i -lt [Math]::Max($v1.Length, $v2.Length); $i++) {
-        $val1 = if ($i -lt $v1.Length) { $v1[$i] } else { 0 }
-        $val2 = if ($i -lt $v2.Length) { $v2[$i] } else { 0 }
-        
-        if ($val1 -lt $val2) { return -1 }
-        if ($val1 -gt $val2) { return 1 }
+    SpecializedTools = @{
+        SourcePath = ".\installers"
+        ScriptName = "Install-Tools.ps1"
+        RequirePowerShell7 = $true
+        AlwaysRun = $true
+        PostDeploymentInstructions = @(
+            "Specialized tools installation completed",
+            "Tools installed to C:\Tools directory:",
+            "• Wabbajack - Modding tool for Bethesda games",
+            "• Additional specialized tools based on configuration",
+            "Desktop and Start Menu shortcuts have been created",
+            "Tools are portable and ready for use"
+        )
     }
-    return 0
-}
-
-# Extract version from file content
-function Get-FileVersion {
-    param([string]$FilePath)
-    
-    if (-not (Test-Path $FilePath)) { return $null }
-    
-    $content = Get-Content $FilePath -Raw -ErrorAction SilentlyContinue
-    if (-not $content) { return $null }
-    
-    # Get file extension to determine comment format
-    $extension = [System.IO.Path]::GetExtension($FilePath).ToLower()
-    
-    # Define version patterns for different file types
-    $versionPatterns = switch ($extension) {
-        '.css' {
-            @(
-                '/\*[^*]*Version[:\s]*([v]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9\-\.]+)?)[^*]*\*/',
-                '/\*[^*]*@version\s+([v]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9\-\.]+)?)[^*]*\*/'
-            )
-        }
-        '.ps1' {
-            @(
-                '#.*[Vv]ersion[:\s]*([v]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9\-\.]+)?)',
-                '<#[^#]*[Vv]ersion[:\s]*([v]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9\-\.]+)?)[^#]*#>'
-            )
-        }
-        default {
-            @(
-                '#.*[Vv]ersion[:\s]*([v]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9\-\.]+)?)',
-                '/\*[^*]*[Vv]ersion[:\s]*([v]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9\-\.]+)?)[^*]*\*/',
-                '//.*[Vv]ersion[:\s]*([v]?\d+(?:\.\d+)*(?:-[a-zA-Z0-9\-\.]+)?)'
-            )
-        }
-    }
-    
-    # Try each pattern
-    foreach ($pattern in $versionPatterns) {
-        if ($content -match $pattern) {
-            return $Matches[1]
-        }
-    }
-    
-    return $null
-}
-
-# Create backup of existing file
-function Backup-File {
-    param([string]$FilePath)
-    
-    if (Test-Path $FilePath) {
-        $backupPath = "$FilePath.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-        Copy-Item $FilePath $backupPath -Force
-        Write-Host "  Backed up existing file to: $(Split-Path $backupPath -Leaf)" -ForegroundColor Yellow
-        return $backupPath
-    }
-    return $null
 }
 
 # Deploy a single file type
@@ -304,7 +242,7 @@ function Deploy-FileType {
             if ($Config.AlwaysOverwrite) {
                 $reason = "Always overwrite enabled"
             } else {
-                $comparison = Compare-Version $sourceVersion $targetVersion
+                $comparison = Get-SemanticVersionComparison $sourceVersion $targetVersion
                 if ($comparison -gt 0) {
                     $reason = "Source is newer"
                 } elseif ($comparison -eq 0) {
@@ -333,7 +271,7 @@ function Deploy-FileType {
                 }
                 
                 # Backup existing file
-                Backup-File $targetPath
+                Copy-FileBackup $targetPath
                 
                 # Deploy new file
                 Copy-Item $sourceFile.FullName $targetPath -Force
@@ -368,7 +306,8 @@ function Start-Deployment {
         "PowerShellProfile", 
         "FirefoxUserChrome",
         "SideberyData",
-        "OBSPortable"
+        "OBSPortable",
+        "SpecializedTools"
     )
     
     foreach ($deploymentTypeName in $deploymentOrder) {

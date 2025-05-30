@@ -2,95 +2,79 @@
 
 <#
 .SYNOPSIS
-    OBS Studio Multi-Profile Portable Setup Script
+    OBS Studio Portable Setup Script
 
 .DESCRIPTION
-    Automatically downloads OBS Studio and sets up multiple portable installations
-    with different plugin configurations for streaming, recording, and testing.
-
-.PARAMETER Profiles
-    Comma-separated list of profiles to install (streaming, recording, testing)
-
-.PARAMETER ConfigFile
-    Path to the JSON configuration file (default: obs-profiles.json)
+    Downloads and configures multiple portable OBS Studio installations with different profiles:
+    - Streaming Profile: Full setup with advanced plugins for live streaming
+    - Recording Profile: Optimized for high-quality local recording
+    - Testing Profile: Minimal setup for testing and development
 
 .PARAMETER Force
-    Force reinstallation even if profiles already exist
+    Force reinstallation even if OBS is already installed
 
-.PARAMETER SkipShortcuts
-    Skip creating desktop and start menu shortcuts
+.PARAMETER SkipStreaming
+    Skip the streaming profile installation
 
-.PARAMETER KeepFiles
-    Keep downloaded files and show their locations for debugging purposes
+.PARAMETER SkipRecording
+    Skip the recording profile installation
+
+.PARAMETER SkipTesting
+    Skip the testing profile installation
+
+.PARAMETER ToolsDirectory
+    Custom tools directory path (default: C:\Tools)
 
 .PARAMETER GitHubToken
-    GitHub token for authentication
+    GitHub personal access token for authenticated API requests (optional)
 
 .EXAMPLE
     .\setup-obs.ps1
-    # Installs all profiles
-    
-.EXAMPLE
-    .\setup-obs.ps1 -Profiles streaming,recording
-    # Installs only streaming and recording profiles
     
 .EXAMPLE
     .\setup-obs.ps1 -Force
-    # Force reinstall all profiles
-
+    
 .EXAMPLE
-    .\setup-obs.ps1 -KeepFiles
-    # Run with debug mode to keep downloaded files for inspection
-
-.EXAMPLE
-    .\setup-obs.ps1 -GitHubToken "ghp_xxxxxxxxxxxx"
-    # Use GitHub token to avoid rate limiting (get token from https://github.com/settings/tokens)
+    .\setup-obs.ps1 -SkipTesting
 #>
 
 param(
     [Parameter(Mandatory = $false)]
-    [string[]]$Profiles = @("streaming", "recording", "testing"),
-    
-    [Parameter(Mandatory = $false)]
-    [string]$ConfigFile = "obs-profiles.json",
-    
-    [Parameter(Mandatory = $false)]
     [switch]$Force,
     
     [Parameter(Mandatory = $false)]
-    [switch]$SkipShortcuts,
+    [switch]$SkipStreaming,
     
     [Parameter(Mandatory = $false)]
-    [switch]$KeepFiles,
+    [switch]$SkipRecording,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipTesting,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$ToolsDirectory = "C:\Tools",
     
     [Parameter(Mandatory = $false)]
     [string]$GitHubToken
 )
 
-# Colors for output
-$Colors = @{
-    Success = "Green"
-    Info = "Cyan"
-    Warning = "Yellow"
-    Error = "Red"
-    Gray = "Gray"
+# Import the shared module
+Import-Module (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "modules\ComputerSetup.psm1") -Force
+
+# Load configuration from JSON file
+$configPath = Join-Path $PSScriptRoot "obs-profiles.json"
+
+if (-not (Test-Path $configPath)) {
+    Write-StatusMessage "Configuration file not found: $configPath" "Error"
+    exit 1
 }
 
-function Write-StatusMessage {
-    param(
-        [string]$Message,
-        [string]$Type = "Info"
-    )
-    
-    $prefix = switch ($Type) {
-        "Success" { "[OK]" }
-        "Info" { "[INFO]" }
-        "Warning" { "[WARN]" }
-        "Error" { "[ERROR]" }
-        default { "[*]" }
-    }
-    
-    Write-Host "$prefix $Message" -ForegroundColor $Colors[$Type]
+try {
+    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+}
+catch {
+    Write-StatusMessage "Failed to parse configuration file: $($_.Exception.Message)" "Error"
+    exit 1
 }
 
 function Get-LatestRelease {
@@ -99,109 +83,18 @@ function Get-LatestRelease {
         [string]$FilePattern
     )
     
-    try {
-        $originalProgressPreference = $ProgressPreference
-        $ProgressPreference = 'SilentlyContinue'
-        
-        Write-StatusMessage "Getting latest release from $Repository..." "Info"
-        
-        # Prepare headers for authentication if token is provided
-        $headers = @{}
-        if ($GitHubToken) {
-            $headers['Authorization'] = "token $GitHubToken"
-            Write-StatusMessage "Using GitHub token for authentication" "Info"
-        }
-        
-        # Check rate limit before making request
-        try {
-            $rateLimitResponse = if ($headers.Count -gt 0) {
-                Invoke-RestMethod "https://api.github.com/rate_limit" -Headers $headers
-            } else {
-                Invoke-RestMethod "https://api.github.com/rate_limit"
-            }
-            
-            $remaining = $rateLimitResponse.rate.remaining
-            $resetTime = [DateTimeOffset]::FromUnixTimeSeconds($rateLimitResponse.rate.reset).ToLocalTime()
-            
-            Write-StatusMessage "GitHub API rate limit: $remaining requests remaining (resets at $resetTime)" "Info"
-            
-            if ($remaining -lt 5) {
-                $waitSeconds = ($resetTime - (Get-Date)).TotalSeconds + 10
-                if ($waitSeconds -gt 0) {
-                    Write-StatusMessage "Rate limit nearly exceeded. Waiting $([math]::Ceiling($waitSeconds)) seconds..." "Warning"
-                    Start-Sleep -Seconds ([math]::Ceiling($waitSeconds))
-                }
-            }
-        } catch {
-            Write-StatusMessage "Could not check rate limit status: $($_.Exception.Message)" "Warning"
-        }
-        
-        # Make the actual API request
-        $releases = if ($headers.Count -gt 0) {
-            Invoke-RestMethod "https://api.github.com/repos/$Repository/releases/latest" -Headers $headers
-        } else {
-            Invoke-RestMethod "https://api.github.com/repos/$Repository/releases/latest"
-        }
-        
-        $asset = $releases.assets | Where-Object { $_.name -like $FilePattern } | Select-Object -First 1
-        
-        if (-not $asset) {
-            throw "No asset matching pattern '$FilePattern' found in $Repository"
-        }
-        
-        return @{
-            Name = $asset.name
-            DownloadUrl = $asset.browser_download_url
-            Size = $asset.size
-            Version = $releases.tag_name
-        }
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        if ($errorMessage -like "*403*" -and $errorMessage -like "*rate limit*") {
-            Write-StatusMessage "GitHub API rate limit exceeded. Solutions:" "Error"
-            Write-StatusMessage "1. Wait an hour and try again" "Info"
-            Write-StatusMessage "2. Get a GitHub token: https://github.com/settings/tokens" "Info"
-            Write-StatusMessage "3. Run with: .\setup-obs.ps1 -GitHubToken YOUR_TOKEN" "Info"
-        }
-        Write-StatusMessage "Failed to get release from $Repository`: $errorMessage" "Error"
-        return $null
-    }
-    finally {
-        $ProgressPreference = $originalProgressPreference
-    }
-}
-
-function Download-File {
-    param(
-        [string]$Url,
-        [string]$OutputPath,
-        [string]$Description = "file"
-    )
+    $releaseInfo = Get-GitHubLatestRelease -Repository $Repository -FilePattern $FilePattern -GitHubToken $GitHubToken
     
-    try {
-        $originalProgressPreference = $ProgressPreference
-        $ProgressPreference = 'SilentlyContinue'
-        
-        $fileSize = try {
-            $response = Invoke-WebRequest -Uri $Url -Method Head -UseBasicParsing
-            [int64]$response.Headers.'Content-Length'[0]
-        } catch { 0 }
-        
-        $sizeText = if ($fileSize -gt 0) { " ($('{0:N1}' -f ($fileSize / 1MB)) MB)" } else { "" }
-        Write-StatusMessage "Downloading $Description$sizeText..." "Info"
-        
-        Invoke-WebRequest -Uri $Url -OutFile $OutputPath -UseBasicParsing
-        
-        return $true
+    if ($releaseInfo) {
+        return @{
+            Name = $releaseInfo.FileName
+            DownloadUrl = $releaseInfo.DownloadUrl
+            Size = $releaseInfo.Size
+            Version = $releaseInfo.Version
+        }
     }
-    catch {
-        Write-StatusMessage "Failed to download $Description`: $($_.Exception.Message)" "Error"
-        return $false
-    }
-    finally {
-        $ProgressPreference = $originalProgressPreference
-    }
+    
+    return $null
 }
 
 function Extract-Archive {
@@ -390,12 +283,7 @@ function Install-OBSProfile {
     }
     
     # Create temp directory for plugin downloads
-    if ($KeepFiles) {
-        $tempDir = Join-Path $env:USERPROFILE "Desktop\OBS-Debug-$ProfileName"
-        Write-StatusMessage "Debug mode: Files will be kept at $tempDir" "Info"
-    } else {
-        $tempDir = Join-Path $env:TEMP "obs-setup-$ProfileName"
-    }
+    $tempDir = Join-Path $env:TEMP "obs-setup-$ProfileName"
     
     if (Test-Path $tempDir) {
         Remove-Item $tempDir -Recurse -Force
@@ -474,7 +362,7 @@ function Install-OBSProfile {
                     
                     $pluginArchive = Join-Path $tempDir "$($plugin.name).zip"
                     
-                    if (Download-File -Url $pluginRelease.DownloadUrl -OutputPath $pluginArchive -Description $plugin.name) {
+                    if (Invoke-FileDownload -Url $pluginRelease.DownloadUrl -OutputPath $pluginArchive -Description $plugin.name) {
                         $pluginExtractDir = Join-Path $tempDir "$($plugin.name)-extract"
                         if (Extract-Archive -ArchivePath $pluginArchive -DestinationPath $pluginExtractDir -Description $plugin.name) {
                             # Copy plugin files to OBS directory
@@ -562,12 +450,7 @@ function Install-OBSProfile {
     finally {
         # Cleanup temp directory (only for plugins now, not OBS)
         if (Test-Path $tempDir) {
-            if ($KeepFiles) {
-                Write-StatusMessage "Debug mode: Plugin files kept at $tempDir" "Info"
-                Write-Host "  - Plugin downloads and extracts: $tempDir" -ForegroundColor Yellow
-            } else {
-                Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-            }
+            Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 }
@@ -578,10 +461,6 @@ function New-OBSShortcuts {
         [string]$ProfilePath,
         [string]$DisplayName
     )
-    
-    if ($SkipShortcuts) {
-        return
-    }
     
     try {
         $obsExe = Join-Path $ProfilePath "bin\64bit\obs64.exe"
@@ -733,30 +612,21 @@ function Main {
     Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)" -ForegroundColor Gray
     Write-Host ""
     
-    # Load configuration
-    $configPath = if ([System.IO.Path]::IsPathRooted($ConfigFile)) {
-        $ConfigFile
-    } else {
-        Join-Path $PSScriptRoot $ConfigFile
-    }
-    
-    if (-not (Test-Path $configPath)) {
-        Write-StatusMessage "Configuration file not found: $configPath" "Error"
-        exit 1
-    }
-    
-    try {
-        $config = Get-Content $configPath -Raw | ConvertFrom-Json
-    }
-    catch {
-        Write-StatusMessage "Failed to parse configuration file: $($_.Exception.Message)" "Error"
-        exit 1
-    }
-    
     Write-StatusMessage "Loaded configuration from $configPath" "Info"
     Write-StatusMessage "Base install path: $($config.baseInstallPath)" "Info"
-    Write-StatusMessage "Profiles to install: $($Profiles -join ', ')" "Info"
+    Write-StatusMessage "Tools Directory: $ToolsDirectory" "Info"
+    
+    # Determine which profiles to install based on skip flags
+    $profilesToInstall = @()
+    if (-not $SkipStreaming) { $profilesToInstall += "streaming" }
+    if (-not $SkipRecording) { $profilesToInstall += "recording" }
+    if (-not $SkipTesting) { $profilesToInstall += "testing" }
+    
+    Write-StatusMessage "Profiles to install: $($profilesToInstall -join ', ')" "Info"
     Write-Host ""
+    
+    # Use ToolsDirectory instead of config.baseInstallPath
+    $baseInstallPath = $ToolsDirectory
     
     # Get OBS release info once
     Write-StatusMessage "Getting latest OBS Studio release..." "Info"
@@ -768,10 +638,10 @@ function Main {
     Write-StatusMessage "Found OBS Studio $($obsRelease.Version)" "Success"
     
     # Ensure base install path exists
-    if (-not (Test-Path $config.baseInstallPath)) {
-        Write-StatusMessage "Creating base install directory: $($config.baseInstallPath)" "Info"
+    if (-not (Test-Path $baseInstallPath)) {
+        Write-StatusMessage "Creating base install directory: $baseInstallPath" "Info"
         try {
-            New-Item -Path $config.baseInstallPath -ItemType Directory -Force | Out-Null
+            New-Item -Path $baseInstallPath -ItemType Directory -Force | Out-Null
             Write-StatusMessage "Base install directory created successfully" "Success"
         }
         catch {
@@ -784,12 +654,12 @@ function Main {
     $sharedObsFiles = $null
     $needsObsDownload = $false
     
-    foreach ($profileName in $Profiles) {
+    foreach ($profileName in $profilesToInstall) {
         if (-not $config.profiles.$profileName) {
             continue
         }
         
-        $profilePath = Join-Path $config.baseInstallPath "OBS-$profileName"
+        $profilePath = Join-Path $baseInstallPath "OBS-$profileName"
         $profileExists = Test-Path $profilePath
         
         if (-not $profileExists -or $Force) {
@@ -804,12 +674,7 @@ function Main {
         Write-Host "============================================" -ForegroundColor Yellow
         
         # Create shared temp directory for OBS download
-        if ($KeepFiles) {
-            $sharedTempDir = Join-Path $env:USERPROFILE "Desktop\OBS-Shared-Download"
-            Write-StatusMessage "Debug mode: Shared OBS files will be kept at $sharedTempDir" "Info"
-        } else {
-            $sharedTempDir = Join-Path $env:TEMP "obs-shared-download"
-        }
+        $sharedTempDir = Join-Path $env:TEMP "obs-shared-download"
         
         if (Test-Path $sharedTempDir) {
             Remove-Item $sharedTempDir -Recurse -Force
@@ -820,7 +685,7 @@ function Main {
             # Download OBS once
             $obsArchive = Join-Path $sharedTempDir "obs-studio.zip"
             
-            if (-not (Download-File -Url $obsRelease.DownloadUrl -OutputPath $obsArchive -Description "OBS Studio $($obsRelease.Version)")) {
+            if (-not (Invoke-FileDownload -Url $obsRelease.DownloadUrl -OutputPath $obsArchive -Description "OBS Studio $($obsRelease.Version)")) {
                 throw "Failed to download OBS Studio"
             }
             
@@ -895,18 +760,18 @@ function Main {
     $installedProfiles = @()
     $failedProfiles = @()
     
-    foreach ($profileName in $Profiles) {
+    foreach ($profileName in $profilesToInstall) {
         if (-not $config.profiles.$profileName) {
             Write-StatusMessage "Profile '$profileName' not found in configuration" "Warning"
             $failedProfiles += $profileName
             continue
         }
         
-        $success = Install-OBSProfile -ProfileName $profileName -ProfileConfig $config.profiles.$profileName -BaseInstallPath $config.baseInstallPath -ObsRelease $obsRelease -SharedObsFiles $sharedObsFiles
+        $success = Install-OBSProfile -ProfileName $profileName -ProfileConfig $config.profiles.$profileName -BaseInstallPath $baseInstallPath -ObsRelease $obsRelease -SharedObsFiles $sharedObsFiles
         
         if ($success) {
             $installedProfiles += $profileName
-            $profilePath = Join-Path $config.baseInstallPath "OBS-$profileName"
+            $profilePath = Join-Path $baseInstallPath "OBS-$profileName"
             New-OBSShortcuts -ProfileName $profileName -ProfilePath $profilePath -DisplayName $config.profiles.$profileName.name
         } else {
             $failedProfiles += $profileName
@@ -915,11 +780,7 @@ function Main {
     
     # Cleanup shared temp directory
     if ($sharedObsFiles -and (Test-Path $sharedTempDir)) {
-        if ($KeepFiles) {
-            Write-StatusMessage "Debug mode: Shared OBS files kept at $sharedTempDir" "Info"
-        } else {
-            Remove-Item $sharedTempDir -Recurse -Force -ErrorAction SilentlyContinue
-        }
+        Remove-Item $sharedTempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     
     # Summary
@@ -930,7 +791,7 @@ function Main {
     if ($installedProfiles.Count -gt 0) {
         Write-StatusMessage "Successfully installed profiles:" "Success"
         foreach ($profile in $installedProfiles) {
-            $profilePath = Join-Path $config.baseInstallPath "OBS-$profile"
+            $profilePath = Join-Path $baseInstallPath "OBS-$profile"
             Write-Host "  ✅ $($config.profiles.$profile.name)" -ForegroundColor Green
             Write-Host "     Location: $profilePath" -ForegroundColor Gray
             Write-Host "     Plugins: $($config.profiles.$profile.plugins.Count)" -ForegroundColor Gray

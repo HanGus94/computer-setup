@@ -33,31 +33,8 @@ param(
     [switch]$SkipVCRedist
 )
 
-# Colors for output
-$Colors = @{
-    Success = "Green"
-    Info = "Cyan"
-    Warning = "Yellow"
-    Error = "Red"
-    Gray = "Gray"
-}
-
-function Write-StatusMessage {
-    param(
-        [string]$Message,
-        [string]$Type = "Info"
-    )
-    
-    $prefix = switch ($Type) {
-        "Success" { "[OK]" }
-        "Info" { "[INFO]" }
-        "Warning" { "[WARN]" }
-        "Error" { "[ERROR]" }
-        default { "[*]" }
-    }
-    
-    Write-Host "$prefix $Message" -ForegroundColor $Colors[$Type]
-}
+# Import the shared module
+Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) "modules\ComputerSetup.psm1") -Force
 
 function Test-VCRedistInstalled {
     param([string]$Version)
@@ -82,31 +59,6 @@ function Test-VCRedistInstalled {
     }
     catch {
         return $false
-    }
-}
-
-function Download-File {
-    param(
-        [string]$Url,
-        [string]$OutputPath,
-        [string]$Description = "file"
-    )
-    
-    try {
-        $originalProgressPreference = $ProgressPreference
-        $ProgressPreference = 'SilentlyContinue'
-        
-        Write-StatusMessage "Downloading $Description..." "Info"
-        Invoke-WebRequest -Uri $Url -OutFile $OutputPath -UseBasicParsing
-        
-        return $true
-    }
-    catch {
-        Write-StatusMessage "Failed to download $Description`: $($_.Exception.Message)" "Error"
-        return $false
-    }
-    finally {
-        $ProgressPreference = $originalProgressPreference
     }
 }
 
@@ -139,7 +91,7 @@ function Install-VCRedist {
         $fileName = "vcredist_$($architecture)_$($VCPackage.Version).exe"
         $installerPath = Join-Path $tempDir $fileName
         
-        if (-not (Download-File -Url $downloadUrl -OutputPath $installerPath -Description $packageName)) {
+        if (-not (Invoke-FileDownload -Url $downloadUrl -OutputPath $installerPath -Description $packageName)) {
             throw "Failed to download $packageName"
         }
         
@@ -173,9 +125,7 @@ function Install-VCRedist {
 }
 
 function Install-AllVCRedist {
-    Write-Host "`n============================================" -ForegroundColor Cyan
-    Write-Host "Microsoft Visual C++ Redistributables" -ForegroundColor Cyan
-    Write-Host "============================================" -ForegroundColor Cyan
+    Write-SectionHeader "Microsoft Visual C++ Redistributables"
     Write-Host "Required for OBS Studio and most plugins" -ForegroundColor Gray
     Write-Host ""
     
@@ -217,12 +167,6 @@ function Install-AllVCRedist {
     }
     
     return $true
-}
-
-function Test-IsElevated {
-    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 # Main execution

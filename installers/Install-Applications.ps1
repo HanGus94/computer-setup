@@ -26,6 +26,9 @@
 .PARAMETER SkipGaming
     Skip gaming applications (Steam, etc.)
 
+.PARAMETER SkipScoop
+    Skip Scoop package manager installation
+
 .PARAMETER OnlyEssential
     Install only essential applications (browsers and basic utilities)
 
@@ -40,6 +43,9 @@
     
 .EXAMPLE
     .\Install-Applications.ps1 -OnlyEssential
+    
+.EXAMPLE
+    .\Install-Applications.ps1 -SkipScoop -SkipGaming
     
 .EXAMPLE
     .\Install-Applications.ps1 -Applications "Mozilla.Firefox","Microsoft.VisualStudioCode"
@@ -65,37 +71,17 @@ param(
     [switch]$SkipGaming,
     
     [Parameter(Mandatory = $false)]
+    [switch]$SkipScoop,
+    
+    [Parameter(Mandatory = $false)]
     [switch]$OnlyEssential,
     
     [Parameter(Mandatory = $false)]
     [string[]]$Applications
 )
 
-# Colors for output
-$Colors = @{
-    Success = "Green"
-    Info = "Cyan"
-    Warning = "Yellow"
-    Error = "Red"
-    Gray = "Gray"
-}
-
-function Write-StatusMessage {
-    param(
-        [string]$Message,
-        [string]$Type = "Info"
-    )
-    
-    $prefix = switch ($Type) {
-        "Success" { "[OK]" }
-        "Info" { "[INFO]" }
-        "Warning" { "[WARN]" }
-        "Error" { "[ERROR]" }
-        default { "[*]" }
-    }
-    
-    Write-Host "$prefix $Message" -ForegroundColor $Colors[$Type]
-}
+# Import the shared module
+Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) "modules\ComputerSetup.psm1") -Force
 
 # Application configurations
 $ApplicationCategories = @{
@@ -105,6 +91,7 @@ $ApplicationCategories = @{
             Id = "Mozilla.Firefox"
             Essential = $true
             Description = "Privacy-focused web browser"
+            PackageManager = "winget"
         }
     )
     
@@ -114,18 +101,21 @@ $ApplicationCategories = @{
             Id = "Anysphere.Cursor"
             Essential = $false
             Description = "AI-powered code editor"
+            PackageManager = "winget"
         },
         @{
             Name = "Git"
             Id = "Git.Git"
             Essential = $false
             Description = "Version control system"
+            PackageManager = "winget"
         },
         @{
             Name = "Windows Terminal"
             Id = "Microsoft.WindowsTerminal"
             Essential = $false
             Description = "Modern terminal application"
+            PackageManager = "winget"
         }
     )
     
@@ -135,6 +125,14 @@ $ApplicationCategories = @{
             Id = "VideoLAN.VLC"
             Essential = $false
             Description = "Universal media player"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Spotify Terminal Player"
+            Id = "spotify-player"
+            Essential = $false
+            Description = "Spotify terminal player"
+            PackageManager = "scoop"
         }
     )
 
@@ -144,6 +142,28 @@ $ApplicationCategories = @{
             Id = "Valve.Steam"
             Essential = $false
             Description = "Digital game distribution platform"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Epic Games Launcher"
+            Id = "EpicGames.EpicGamesLauncher"
+            Essential = $false
+            Description = "Digital game distribution platform"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "GOG Galaxy"
+            Id = "GOG.Galaxy"
+            Essential = $false
+            Description = "Digital game distribution platform"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Battle.net"
+            Id = "Blizzard.BattleNet"
+            Essential = $false
+            Description = "Digital game distribution platform"
+            PackageManager = "winget"
         }
     )
 
@@ -153,24 +173,28 @@ $ApplicationCategories = @{
             Id = "7zip.7zip"
             Essential = $true
             Description = "File archiver and compression tool"
-        },
-        @{
-            Name = "Nilesoft Shell"
-            Id = "Nilesoft.Shell"
-            Essential = $false
-            Description = "Context Menu Replacement"
-        },
-        @{
-            Name = "Notepad++"
-            Id = "Notepad++.Notepad++"
-            Essential = $false
-            Description = "Advanced text editor"
+            PackageManager = "winget"
         },
         @{
             Name = "PowerToys"
             Id = "Microsoft.PowerToys"
             Essential = $false
             Description = "Windows system utilities"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Discord"
+            Id = "Discord.Discord"
+            Essential = $false
+            Description = "Voice and text chat for gamers"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Nilesoft Shell"
+            Id = "Nilesoft.Shell"
+            Essential = $false
+            Description = "Windows shell replacement"
+            PackageManager = "winget"
         }
     )
 }
@@ -250,6 +274,70 @@ function Install-Winget {
     }
 }
 
+function Test-Scoop {
+    try {
+        $scoopPath = Get-Command scoop -ErrorAction Stop
+        Write-StatusMessage "Scoop found at: $($scoopPath.Source)" "Success"
+        return $true
+    } catch {
+        Write-StatusMessage "Scoop not found" "Warning"
+        return $false
+    }
+}
+
+function Install-Scoop {
+    Write-StatusMessage "Installing Scoop package manager..." "Info"
+    
+    try {
+        # Check execution policy
+        $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
+        $needsPolicyChange = $currentPolicy -eq "Restricted"
+        
+        if ($needsPolicyChange) {
+            Write-StatusMessage "Setting execution policy to RemoteSigned for current user..." "Info"
+            Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        }
+        
+        # Download and install Scoop
+        Write-StatusMessage "Downloading Scoop installer..." "Info"
+        
+        $originalProgressPreference = $ProgressPreference
+        $ProgressPreference = 'SilentlyContinue'
+        
+        Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+        
+        $ProgressPreference = $originalProgressPreference
+        
+        # Refresh PATH
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
+        
+        # Test installation
+        Start-Sleep -Seconds 2
+        if (Test-Scoop) {
+            Write-StatusMessage "Scoop installed successfully!" "Success"
+            
+            # Install essential buckets
+            Write-StatusMessage "Installing essential Scoop buckets..." "Info"
+            try {
+                & scoop bucket add extras 2>$null
+                & scoop bucket add versions 2>$null
+                Write-StatusMessage "Added 'extras' and 'versions' buckets" "Success"
+            } catch {
+                Write-StatusMessage "Warning: Could not add some buckets" "Warning"
+            }
+            
+            return $true
+        } else {
+            throw "Scoop installation verification failed"
+        }
+        
+    } catch {
+        Write-StatusMessage "Failed to install Scoop: $($_.Exception.Message)" "Error"
+        Write-StatusMessage "You can install Scoop manually from: https://scoop.sh" "Info"
+        return $false
+    }
+}
+
 function Test-ApplicationInstalled {
     param([string]$AppId)
     
@@ -266,44 +354,78 @@ function Install-Application {
     
     $appName = $App.Name
     $appId = $App.Id
+    $packageManager = if ($App.PackageManager) { $App.PackageManager } else { "winget" }
     
-    Write-StatusMessage "Installing $appName..." "Info"
+    Write-StatusMessage "Installing $appName using $packageManager..." "Info"
     
     # Check if already installed (unless Force is specified)
     if (-not $Force) {
-        if (Test-ApplicationInstalled -AppId $appId) {
+        $isInstalled = $false
+        
+        if ($packageManager -eq "scoop") {
+            try {
+                $scoopList = & scoop list 2>$null | Out-String
+                $isInstalled = $scoopList -match $appId
+            } catch {
+                $isInstalled = $false
+            }
+        } else {
+            $isInstalled = Test-ApplicationInstalled -AppId $appId
+        }
+        
+        if ($isInstalled) {
             Write-StatusMessage "$appName is already installed" "Success"
             return $true
         }
     }
     
     try {
-        Write-StatusMessage "Installing $appName ($appId)..." "Info"
-        
-        $installArgs = @(
-            "install",
-            "--id", $appId,
-            "--exact",
-            "--silent",
-            "--accept-package-agreements",
-            "--accept-source-agreements"
-        )
-        
-        if ($Force) {
-            $installArgs += "--force"
-        }
-        
-        $process = Start-Process winget -ArgumentList $installArgs -Wait -PassThru -NoNewWindow
-        
-        if ($process.ExitCode -eq 0) {
-            Write-StatusMessage "$appName installed successfully" "Success"
-            return $true
-        } elseif ($process.ExitCode -eq -1978335189) {
-            Write-StatusMessage "$appName is already installed (latest version)" "Success"
-            return $true
+        if ($packageManager -eq "scoop") {
+            # Install via Scoop
+            if (-not (Test-Scoop)) {
+                Write-StatusMessage "Scoop is not available, cannot install $appName" "Error"
+                return $false
+            }
+            
+            Write-StatusMessage "Installing $appName ($appId) via Scoop..." "Info"
+            $process = Start-Process scoop -ArgumentList @("install", $appId) -Wait -PassThru -NoNewWindow
+            
+            if ($process.ExitCode -eq 0) {
+                Write-StatusMessage "$appName installed successfully via Scoop" "Success"
+                return $true
+            } else {
+                Write-StatusMessage "Failed to install $appName via Scoop (exit code: $($process.ExitCode))" "Error"
+                return $false
+            }
         } else {
-            Write-StatusMessage "Failed to install $appName (exit code: $($process.ExitCode))" "Error"
-            return $false
+            # Install via Winget (default)
+            Write-StatusMessage "Installing $appName ($appId) via Winget..." "Info"
+            
+            $installArgs = @(
+                "install",
+                "--id", $appId,
+                "--exact",
+                "--silent",
+                "--accept-package-agreements",
+                "--accept-source-agreements"
+            )
+            
+            if ($Force) {
+                $installArgs += "--force"
+            }
+            
+            $process = Start-Process winget -ArgumentList $installArgs -Wait -PassThru -NoNewWindow
+            
+            if ($process.ExitCode -eq 0) {
+                Write-StatusMessage "$appName installed successfully via Winget" "Success"
+                return $true
+            } elseif ($process.ExitCode -eq -1978335189) {
+                Write-StatusMessage "$appName is already installed (latest version)" "Success"
+                return $true
+            } else {
+                Write-StatusMessage "Failed to install $appName via Winget (exit code: $($process.ExitCode))" "Error"
+                return $false
+            }
         }
         
     } catch {
@@ -380,6 +502,24 @@ function Main {
         }
     }
     
+    # Check if Scoop should be installed
+    if (-not $SkipScoop) {
+        if (-not (Test-Scoop)) {
+            Write-StatusMessage "Installing Scoop package manager..." "Info"
+            $installScoop = Install-Scoop
+            
+            if ($installScoop) {
+                Write-StatusMessage "Scoop is now available for additional package management" "Success"
+            } else {
+                Write-StatusMessage "Scoop installation failed, but continuing with Winget..." "Warning"
+            }
+        } else {
+            Write-StatusMessage "Scoop is already installed" "Success"
+        }
+    } else {
+        Write-StatusMessage "Skipping Scoop installation (SkipScoop flag)" "Warning"
+    }
+    
     # Get list of applications to install
     $applicationsToInstall = Get-ApplicationsToInstall
     
@@ -392,8 +532,10 @@ function Main {
     Write-Host "=========================" -ForegroundColor Cyan
     foreach ($app in $applicationsToInstall) {
         $essentialText = if ($app.Essential) { " (Essential)" } else { "" }
+        $packageManager = if ($app.PackageManager) { $app.PackageManager } else { "winget" }
         Write-Host "  • $($app.Name)$essentialText" -ForegroundColor Gray
         Write-Host "    $($app.Description)" -ForegroundColor DarkGray
+        Write-Host "    Package Manager: $packageManager" -ForegroundColor Magenta
     }
     Write-Host ""
     

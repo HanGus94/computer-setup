@@ -49,20 +49,22 @@ This single command will automatically:
 ```
 
 ### **`Install-Applications.ps1`** - Application Installer
-- Installs common applications using Windows Package Manager (Winget)
+- Installs common applications using Windows Package Manager (Winget) and Scoop
 - Automatically installs Winget if missing
+- Installs Scoop package manager with essential buckets
+- **Dual Package Manager Support** - Each app specifies whether to use Winget or Scoop
 - Configurable application categories (browsers, development, media, utilities)
 - Idempotent - detects existing installations
 
 ```powershell
-# Install all default applications
+# Install all default applications + Scoop
 .\Install-Applications.ps1
 
 # Install only essential applications (Firefox + 7-Zip)
 .\Install-Applications.ps1 -OnlyEssential
 
-# Skip specific categories
-.\Install-Applications.ps1 -SkipDevelopment -SkipMedia
+# Skip specific categories and Scoop
+.\Install-Applications.ps1 -SkipDevelopment -SkipMedia -SkipScoop
 
 # Install custom application list
 .\Install-Applications.ps1 -Applications "Mozilla.Firefox","Microsoft.VisualStudioCode"
@@ -72,11 +74,11 @@ This single command will automatically:
 ```
 
 **Supported Application Categories:**
-- **Browsers**: Firefox
-- **Development**: Cursor AI, Git, Windows Terminal  
-- **Media**: VLC Media Player
-- **Gaming**: Steam
-- **Utilities**: 7-Zip, Notepad++, PowerToys
+- **Browsers**: Firefox (Winget)
+- **Development**: Cursor AI, Git, Windows Terminal (Winget) + Node.js, Python (Scoop)
+- **Media**: VLC Media Player (Winget)
+- **Gaming**: Steam, Epic Games, Battle.net, GoG Galaxy (Winget)
+- **Utilities**: 7-Zip, Notepad++, PowerToys (Winget) + ripgrep, fd (Scoop)
 
 ### **`obs/setup-obs.ps1`** - OBS Multi-Profile Setup
 - Downloads OBS Studio once, installs to multiple profiles
