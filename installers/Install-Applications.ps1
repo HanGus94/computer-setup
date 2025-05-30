@@ -116,6 +116,13 @@ $ApplicationCategories = @{
             Essential = $false
             Description = "Modern terminal application"
             PackageManager = "winget"
+        },
+        @{
+            Name = "Docker Desktop"
+            Id = "Docker.DockerDesktop"
+            Essential = $false
+            Description = "Docker containerization platform"
+            PackageManager = "winget"
         }
     )
     
