@@ -97,7 +97,7 @@ function Get-LatestRelease {
     return $null
 }
 
-function Extract-Archive {
+function Expand-ArchiveFile {
     param(
         [string]$ArchivePath,
         [string]$DestinationPath,
@@ -364,7 +364,7 @@ function Install-OBSProfile {
                     
                     if (Invoke-FileDownload -Url $pluginRelease.DownloadUrl -OutputPath $pluginArchive -Description $plugin.name) {
                         $pluginExtractDir = Join-Path $tempDir "$($plugin.name)-extract"
-                        if (Extract-Archive -ArchivePath $pluginArchive -DestinationPath $pluginExtractDir -Description $plugin.name) {
+                        if (Expand-ArchiveFile -ArchivePath $pluginArchive -DestinationPath $pluginExtractDir -Description $plugin.name) {
                             # Copy plugin files to OBS directory
                             # Look for common plugin directories
                             $pluginDirs = @("obs-plugins", "data")
@@ -689,7 +689,7 @@ function Main {
                 throw "Failed to download OBS Studio"
             }
             
-            if (-not (Extract-Archive -ArchivePath $obsArchive -DestinationPath $sharedTempDir -Description "OBS Studio")) {
+            if (-not (Expand-ArchiveFile -ArchivePath $obsArchive -DestinationPath $sharedTempDir -Description "OBS Studio")) {
                 throw "Failed to extract OBS Studio"
             }
             

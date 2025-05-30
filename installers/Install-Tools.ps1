@@ -125,7 +125,7 @@ function Install-Tool {
         
         # Create shortcuts if requested
         if ($ToolConfig.CreateShortcuts) {
-            Create-Shortcuts -ToolName $ToolName -ToolConfig $ToolConfig -ExecutablePath $targetPath
+            New-Shortcuts -ToolName $ToolName -ToolConfig $ToolConfig -ExecutablePath $targetPath
         }
         
         # Cleanup
@@ -141,7 +141,7 @@ function Install-Tool {
     }
 }
 
-function Create-Shortcuts {
+function New-Shortcuts {
     param(
         [string]$ToolName,
         [hashtable]$ToolConfig,

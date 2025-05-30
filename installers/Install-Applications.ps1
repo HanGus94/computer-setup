@@ -468,7 +468,7 @@ function Test-ApplicationInstalled {
     
     # Default winget detection
     try {
-        $result = winget list --id $AppId --exact 2>$null
+        winget list --id $AppId --exact 2>$null | Out-Null
         return $LASTEXITCODE -eq 0
     } catch {
         return $false

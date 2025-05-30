@@ -68,9 +68,8 @@ $DeploymentConfig = @{
             $firefoxProfiles = Get-ChildItem "$env:APPDATA\Mozilla\Firefox\Profiles" -Directory -ErrorAction SilentlyContinue
             if ($firefoxProfiles) {
                 $defaultProfile = $firefoxProfiles | Select-Object -First 1
-                # Sidebery stores data in the extension storage
-                $sideberyPath = Join-Path $defaultProfile.FullName "storage\default\moz-extension+++*\idb"
-                # For manual import, we'll put it in a backup location for the user to manually import
+                # Sidebery stores data in the extension storage, but for manual import
+                # we'll put it in a backup location for the user to manually import
                 $backupPath = Join-Path $defaultProfile.FullName "sidebery-backup"
                 return Join-Path $backupPath "sidebery-data.json"
             }
