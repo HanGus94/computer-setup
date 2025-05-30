@@ -1,0 +1,163 @@
+{
+  "_README": "This is an EXAMPLE file showing all plugin download methods. Copy what you need to obs-profiles.json",
+  
+  "baseInstallPath": "C:\\Tools",
+  "profiles": {
+    "streaming": {
+      "name": "OBS Studio (Streaming)",
+      "description": "Full-featured setup for live streaming",
+      "plugins": [
+        {
+          "_comment": "=== GITHUB METHOD (Recommended) ===",
+          "name": "Advanced Scene Switcher",
+          "description": "Automated scene switching based on various conditions",
+          "downloadMethod": "github",
+          "repo": "WarmUpTill/SceneSwitcher",
+          "filePattern": "*-Windows.zip",
+          "_howto": "Go to https://github.com/WarmUpTill/SceneSwitcher/releases, find repo name and file pattern"
+        },
+        {
+          "_comment": "=== GITHUB METHOD - Another Example ===",
+          "name": "Source Dock",
+          "description": "Dock any source in a separate window",
+          "downloadMethod": "github", 
+          "repo": "exeldro/obs-source-dock",
+          "filePattern": "*.zip",
+          "_howto": "GitHub: username/repository-name, pattern matches the release file you want"
+        },
+        {
+          "_comment": "=== OBS PROJECT FORUM METHOD ===",
+          "name": "Move Transition",
+          "description": "Move sources to a new position during scene transition",
+          "downloadMethod": "obsproject",
+          "resourceId": "913",
+          "version": "6257", 
+          "fileId": "113467",
+          "filename": "move.zip",
+          "_original_url": "https://obsproject.com/forum/resources/move.913/version/6257/download?file=113467",
+          "_howto": [
+            "1. Go to: https://obsproject.com/forum/resources/move.913/",
+            "2. resourceId = '913' (number after resource name)",
+            "3. Click download, URL becomes: .../version/6257/download?file=113467",
+            "4. version = '6257' (number after /version/)",
+            "5. fileId = '113467' (number after ?file=)"
+          ]
+        }
+      ]
+    },
+    "recording": {
+      "name": "OBS Studio (Recording)",
+      "description": "Optimized setup for local recording",
+      "plugins": [
+        {
+          "_comment": "=== DIRECT URL METHOD ===",
+          "name": "Custom Plugin from Direct URL",
+          "description": "Example of downloading from any direct URL",
+          "downloadMethod": "direct",
+          "url": "https://example.com/path/to/plugin.zip",
+          "filename": "custom-plugin.zip",
+          "_howto": "Right-click any download link, copy URL, paste as 'url'"
+        },
+        {
+          "_comment": "=== GITHUB METHOD - Audio Plugin ===",
+          "name": "Audio Monitor",
+          "description": "Audio monitoring plugin",
+          "downloadMethod": "github",
+          "repo": "exeldro/obs-audio-monitor", 
+          "filePattern": "*.zip"
+        }
+      ]
+    },
+    "testing": {
+      "name": "OBS Studio (Testing)",
+      "description": "Minimal setup for testing",
+      "plugins": [
+        {
+          "_comment": "=== GITHUB METHOD - Media Plugin ===",
+          "name": "Directory Watch Media",
+          "description": "Automatically change media source when files change",
+          "downloadMethod": "github",
+          "repo": "exeldro/obs-dir-watch-media",
+          "filePattern": "*.zip"
+        }
+      ]
+    }
+  },
+
+  "_DOCUMENTATION": {
+    "download_methods": {
+      "github": {
+        "description": "Download from GitHub releases (RECOMMENDED - auto-updates)",
+        "required_fields": ["downloadMethod", "repo", "filePattern"],
+        "steps": [
+          "1. Go to GitHub repository (e.g., https://github.com/WarmUpTill/SceneSwitcher)",
+          "2. Click 'Releases' tab",
+          "3. Look at latest release files",
+          "4. repo = 'username/repository-name' (from URL)",
+          "5. filePattern = pattern matching the file you want (e.g., '*.zip', '*-Windows.zip')"
+        ],
+        "example": {
+          "downloadMethod": "github",
+          "repo": "exeldro/obs-source-dock",
+          "filePattern": "*.zip"
+        }
+      },
+      
+      "direct": {
+        "description": "Direct download from any URL",
+        "required_fields": ["downloadMethod", "url", "filename"],
+        "steps": [
+          "1. Find the direct download link",
+          "2. Right-click and copy URL",
+          "3. Use that as 'url'",
+          "4. Choose any 'filename' you want"
+        ],
+        "example": {
+          "downloadMethod": "direct",
+          "url": "https://example.com/plugin.zip",
+          "filename": "my-plugin.zip"
+        }
+      },
+      
+      "obsproject": {
+        "description": "Download from OBS Project forum",
+        "required_fields": ["downloadMethod", "resourceId", "version", "fileId", "filename"],
+        "steps": [
+          "1. Go to OBS forum resource page",
+          "2. URL looks like: https://obsproject.com/forum/resources/PLUGINNAME.NUMBER/",
+          "3. resourceId = the NUMBER after the plugin name",
+          "4. Click download button to see full URL",
+          "5. Full URL: https://obsproject.com/forum/resources/move.913/version/6257/download?file=113467",
+          "6. version = number after /version/ (6257)",
+          "7. fileId = number after ?file= (113467)"
+        ],
+        "url_breakdown": {
+          "pattern": "https://obsproject.com/forum/resources/{name}.{resourceId}/version/{version}/download?file={fileId}",
+          "example": "https://obsproject.com/forum/resources/move.913/version/6257/download?file=113467",
+          "extract": {
+            "resourceId": "913",
+            "version": "6257", 
+            "fileId": "113467"
+          }
+        },
+        "example": {
+          "downloadMethod": "obsproject",
+          "resourceId": "913",
+          "version": "6257", 
+          "fileId": "113467",
+          "filename": "move.zip"
+        }
+      }
+    },
+    
+    "tips": [
+      "🐙 GitHub method is most reliable - gets latest versions automatically",
+      "🌐 Direct method works for any downloadable URL",
+      "🏛️ OBS Project method requires manual URL inspection but works for forum-only plugins",
+      "📁 You can mix different methods in the same profile",
+      "🏷️ Plugin names must be unique within each profile",
+      "📝 Use descriptive names for easy management",
+      "🔄 Script only downloads/updates when plugin versions change"
+    ]
+  }
+} 

@@ -1,0 +1,51 @@
+{
+  "obsVersion": "latest",
+  "baseInstallPath": "C:\\Tools",
+  "profiles": {
+    "streaming": {
+      "name": "OBS Studio (Streaming)",
+      "description": "Full-featured setup for live streaming",
+      "plugins": [
+        {
+          "name": "Move Transition",
+          "description": "Move sources to a new position during scene transition",
+          "downloadMethod": "obsproject",
+          "resourceId": "913",
+          "version": "6257",
+          "fileId": "113467",
+          "filename": "move.zip"
+        }
+      ]
+    },
+    "recording": {
+      "name": "OBS Studio (Recording)",
+      "description": "Optimized for high-quality recording",
+      "plugins": [
+        {
+          "name": "Move Transition",
+          "description": "Move sources to a new position during scene transition",
+          "downloadMethod": "obsproject",
+          "resourceId": "913",
+          "version": "6257",
+          "fileId": "113467",
+          "filename": "move.zip"
+        }
+      ]
+    },
+    "testing": {
+      "name": "OBS Studio (Testing)",
+      "description": "Minimal setup for testing and development",
+      "plugins": [
+        {
+          "name": "Move Transition",
+          "description": "Move sources to a new position during scene transition",
+          "downloadMethod": "obsproject",
+          "resourceId": "913",
+          "version": "6257",
+          "fileId": "113467",
+          "filename": "move.zip"
+        }
+      ]
+    }
+  }
+} 
