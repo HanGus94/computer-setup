@@ -274,13 +274,6 @@ $ApplicationCategories = @{
             PackageManager = "winget"
         },
         @{
-            Name = "This is Win 11"
-            Id = "thisiswin11"
-            Essential = $false
-            Description = "This is Win 11"
-            PackageManager = "scoop"
-        },
-        @{
             Name = "Teracopy"
             Id = "CodeSector.TeraCopy"
             Essential = $false
@@ -365,6 +358,46 @@ function Install-Winget {
     }
 }
 
+function Add-ScoopBucket {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BucketName,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$BucketUrl = $null
+    )
+    
+    try {
+        # Check if bucket is already added
+        $existingBuckets = & scoop bucket list 2>$null | Out-String
+        if ($existingBuckets -match $BucketName) {
+            Write-StatusMessage "Scoop bucket '$BucketName' is already added" "Success"
+            return $true
+        }
+        
+        # Add the bucket
+        Write-StatusMessage "Adding Scoop bucket: $BucketName" "Info"
+        
+        if ($BucketUrl) {
+            $result = & scoop bucket add $BucketName $BucketUrl 2>&1
+        } else {
+            $result = & scoop bucket add $BucketName 2>&1
+        }
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-StatusMessage "Successfully added Scoop bucket: $BucketName" "Success"
+            return $true
+        } else {
+            Write-StatusMessage "Failed to add Scoop bucket '$BucketName': $result" "Warning"
+            return $false
+        }
+        
+    } catch {
+        Write-StatusMessage "Error adding Scoop bucket '$BucketName': $($_.Exception.Message)" "Warning"
+        return $false
+    }
+}
+
 function Test-Scoop {
     try {
         $scoopPath = Get-Command scoop -ErrorAction Stop
@@ -407,15 +440,10 @@ function Install-Scoop {
         if (Test-Scoop) {
             Write-StatusMessage "Scoop installed successfully!" "Success"
             
-            # Install essential buckets
+            # Install essential buckets using idempotent function
             Write-StatusMessage "Installing essential Scoop buckets..." "Info"
-            try {
-                & scoop bucket add extras 2>$null
-                & scoop bucket add versions 2>$null
-                Write-StatusMessage "Added 'extras' and 'versions' buckets" "Success"
-            } catch {
-                Write-StatusMessage "Warning: Could not add some buckets" "Warning"
-            }
+            Add-ScoopBucket -BucketName "extras"
+            Add-ScoopBucket -BucketName "versions"
             
             return $true
         } else {
@@ -556,6 +584,37 @@ function Install-Application {
     }
 }
 
+function Initialize-ScoopBuckets {
+    <#
+    .SYNOPSIS
+        Initializes essential Scoop buckets (idempotent)
+    #>
+    
+    if (-not (Test-Scoop)) {
+        Write-StatusMessage "Scoop is not available, cannot initialize buckets" "Warning"
+        return $false
+    }
+    
+    Write-StatusMessage "Initializing essential Scoop buckets..." "Info"
+    
+    $bucketsAdded = 0
+    
+    # Essential buckets for our applications
+    $essentialBuckets = @(
+        "extras",
+        "versions"
+    )
+    
+    foreach ($bucket in $essentialBuckets) {
+        if (Add-ScoopBucket -BucketName $bucket) {
+            $bucketsAdded++
+        }
+    }
+    
+    Write-StatusMessage "Scoop bucket initialization completed ($bucketsAdded buckets processed)" "Info"
+    return $true
+}
+
 function Get-ApplicationsToInstall {
     $appsToInstall = @()
     
@@ -648,6 +707,12 @@ function Main {
     if ($applicationsToInstall.Count -eq 0) {
         Write-StatusMessage "No applications selected for installation" "Warning"
         return
+    }
+    
+    # Check if any Scoop applications are in the list and ensure buckets
+    $scoopApps = $applicationsToInstall | Where-Object { $_.PackageManager -eq "scoop" }
+    if ($scoopApps.Count -gt 0 -and (Test-Scoop)) {
+        Initialize-ScoopBuckets
     }
     
     Write-Host "`n📦 Applications to Install" -ForegroundColor Cyan
