@@ -272,6 +272,13 @@ $ApplicationCategories = @{
             Essential = $false
             Description = "Teracopy"
             PackageManager = "winget"
+        },
+        @{
+            Name = "MobaXterm"
+            Id = "Mobatek.MobaXterm"
+            Essential = $false
+            Description = "MobaXterm"
+            PackageManager = "winget"
         }
     )
 }
