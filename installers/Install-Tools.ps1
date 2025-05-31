@@ -5,8 +5,9 @@
     Specialized Tools Installation Script
 
 .DESCRIPTION
-    Downloads and installs specialized tools from GitHub releases to C:\Tools directory.
+    Downloads and installs specialized tools from GitHub releases to optimal Tools directory.
     Creates desktop shortcuts and Start Menu entries for easy access.
+    Automatically selects user or system directory based on admin privileges.
 
 .PARAMETER Force
     Force reinstallation even if tools are already installed
@@ -15,7 +16,7 @@
     Skip Wabbajack modding tool installation
 
 .PARAMETER ToolsDirectory
-    Custom directory for tool installation (default: C:\Tools)
+    Custom directory for tool installation (overrides automatic selection)
 
 .PARAMETER GitHubToken
     GitHub personal access token for authenticated API requests (optional)
@@ -41,7 +42,7 @@ param(
     [switch]$SkipWabbajack,
     
     [Parameter(Mandatory = $false)]
-    [string]$ToolsDirectory = "C:\Tools",
+    [string]$ToolsDirectory,
     
     [Parameter(Mandatory = $false)]
     [string]$GitHubToken
@@ -49,6 +50,11 @@ param(
 
 # Import the shared module
 Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) "modules\ComputerSetup.psm1") -Force
+
+# Determine optimal tools directory
+if ([string]::IsNullOrEmpty($ToolsDirectory)) {
+    $ToolsDirectory = Get-OptimalToolsDirectory
+}
 
 # Tool configurations
 $ToolConfigurations = @{

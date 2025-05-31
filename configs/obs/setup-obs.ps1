@@ -9,6 +9,8 @@
     - Streaming Profile: Full setup with advanced plugins for live streaming
     - Recording Profile: Optimized for high-quality local recording
     - Testing Profile: Minimal setup for testing and development
+    
+    Automatically selects optimal Tools directory based on admin privileges.
 
 .PARAMETER Force
     Force reinstallation even if OBS is already installed
@@ -23,7 +25,7 @@
     Skip the testing profile installation
 
 .PARAMETER ToolsDirectory
-    Custom tools directory path (default: C:\Tools)
+    Custom tools directory path (overrides automatic selection)
 
 .PARAMETER GitHubToken
     GitHub personal access token for authenticated API requests (optional)
@@ -52,7 +54,7 @@ param(
     [switch]$SkipTesting,
     
     [Parameter(Mandatory = $false)]
-    [string]$ToolsDirectory = "C:\Tools",
+    [string]$ToolsDirectory,
     
     [Parameter(Mandatory = $false)]
     [string]$GitHubToken
@@ -60,6 +62,11 @@ param(
 
 # Import the shared module
 Import-Module (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) "modules\ComputerSetup.psm1") -Force
+
+# Determine optimal tools directory
+if ([string]::IsNullOrEmpty($ToolsDirectory)) {
+    $ToolsDirectory = Get-OptimalToolsDirectory
+}
 
 # Load configuration from JSON file
 $configPath = Join-Path $PSScriptRoot "obs-profiles.json"
