@@ -11,6 +11,7 @@ This repository contains PowerShell scripts to automate the setup of a new Windo
 - **Specialized Tools**: Install tools from GitHub releases (Wabbajack, etc.)
 
 ### ⚙️ Configuration Deployment
+- **PowerShell Environment**: Nerd Fonts, Oh-My-Posh, Terminal-Icons, and productivity modules
 - **PowerShell Profile**: Enhanced profile with useful aliases and functions
 - **Firefox userChrome.css**: Custom Firefox interface modifications  
 - **Sidebery**: Firefox sidebar tab management configuration
@@ -75,6 +76,17 @@ Downloads and installs tools from GitHub releases:
 - **`configs/firefox/`**: userChrome.css and Sidebery configuration
 - **`configs/obs/`**: OBS Studio portable setup with multiple profiles
 
+### PowerShell Environment (`configs/powershell/Setup-PowerShell.ps1`)
+Sets up a complete PowerShell development environment:
+- **Nerd Fonts**: CascadiaCove font with terminal icons and symbols
+- **Oh-My-Posh**: Cross-platform prompt theme engine with rich customization
+- **Terminal-Icons**: File and folder icons for enhanced terminal experience
+- **PSReadLine**: Enhanced command line editing with syntax highlighting
+- **Additional Modules**: ConsoleGuiTools, PSFzf for productivity
+
+**Features**: Font auto-installation, module dependency management, idempotent execution
+**User-friendly**: No admin rights required for font installation
+
 ## Architecture
 
 ### Shared Module (`modules/ComputerSetup.psm1`)
@@ -110,6 +122,12 @@ Provides common functionality across all scripts:
 
 # Skip specific features
 .\installers\Enable-WindowsFeatures.ps1 -SkipHyperV -SkipWindowsSandbox
+
+# Setup PowerShell environment only
+.\configs\powershell\Setup-PowerShell.ps1
+
+# Skip fonts but install modules
+.\configs\powershell\Setup-PowerShell.ps1 -SkipFonts
 
 # Install tools to custom directory
 .\installers\Install-Tools.ps1 -ToolsDirectory "D:\MyTools"

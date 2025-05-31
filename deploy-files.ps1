@@ -28,6 +28,23 @@ Import-Module (Join-Path $PSScriptRoot "modules\ComputerSetup.psm1") -Force
 
 # Configuration for different deployment types
 $DeploymentConfig = @{
+    PowerShellSetup = @{
+        SourcePath = ".\configs\powershell"
+        ScriptName = "Setup-PowerShell.ps1"
+        RequirePowerShell7 = $true
+        AlwaysRun = $true
+        PostDeploymentInstructions = @(
+            "PowerShell environment setup completed",
+            "Installed components may include:",
+            "• CascadiaCove Nerd Font - Terminal font with icons and symbols",
+            "• Oh-My-Posh - Customizable prompt theme engine",
+            "• Terminal-Icons - File and folder icons in terminal",
+            "• PSReadLine - Enhanced command line editing",
+            "• Additional PowerShell productivity modules",
+            "⚠️ Restart your terminal to see the new fonts",
+            "Configure your terminal to use 'CascadiaCove Nerd Font'"
+        )
+    }
     PowerShellProfile = @{
         SourcePath = ".\configs\powershell"
         FilePattern = "*profile*.ps1"
@@ -318,6 +335,7 @@ function Start-Deployment {
         "WindowsFeatures",
         "SystemDependencies",
         "Applications",
+        "PowerShellSetup",
         "PowerShellProfile", 
         "FirefoxUserChrome",
         "SideberyData",
