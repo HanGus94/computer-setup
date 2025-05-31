@@ -299,6 +299,7 @@ function Install-OhMyPosh {
             "--id", "JanDeDobbeleer.OhMyPosh",
             "--exact",
             "--silent",
+            "--disable-interactivity",
             "--accept-package-agreements",
             "--accept-source-agreements"
         )

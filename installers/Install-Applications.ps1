@@ -496,7 +496,7 @@ function Test-ApplicationInstalled {
     
     # Default winget detection
     try {
-        winget list --id $AppId --exact 2>$null | Out-Null
+        winget list --id $AppId --exact --disable-interactivity 2>$null | Out-Null
         return $LASTEXITCODE -eq 0
     } catch {
         return $false
@@ -562,6 +562,7 @@ function Install-Application {
                 "--id", $appId,
                 "--exact",
                 "--silent",
+                "--disable-interactivity",
                 "--accept-package-agreements",
                 "--accept-source-agreements"
             )

@@ -101,7 +101,7 @@ function Install-PowerShell7 {
     if (Test-Winget) {
         Write-StatusMessage "Using winget to install PowerShell..." "Info"
         try {
-            $null = winget install --id Microsoft.Powershell --source winget --accept-package-agreements --accept-source-agreements 2>&1
+            $null = winget install --id Microsoft.Powershell --source winget --disable-interactivity --accept-package-agreements --accept-source-agreements 2>&1
             if ($LASTEXITCODE -eq 0) {
                 Write-StatusMessage "PowerShell 7 installed successfully via winget!" "Success"
                 return $true

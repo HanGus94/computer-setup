@@ -143,7 +143,7 @@ if (-not (Get-Command oh-my-posh -ErrorAction SilentlyContinue)) {
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         try {
             Write-Host "Installing Oh My Posh..." -ForegroundColor Cyan
-            winget install JanDeDobbeleer.OhMyPosh -s winget --silent
+            winget install JanDeDobbeleer.OhMyPosh -s winget --silent --disable-interactivity
             # Refresh PATH to make oh-my-posh available
             $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
         } catch {
@@ -167,7 +167,7 @@ if (-not (Get-Command zoxide -ErrorAction SilentlyContinue)) {
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         try {
             Write-Host "Installing Zoxide..." -ForegroundColor Cyan
-            winget install ajeetdsouza.zoxide -s winget --silent
+            winget install ajeetdsouza.zoxide -s winget --silent --disable-interactivity
             # Refresh PATH to make zoxide available
             $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
         } catch {
