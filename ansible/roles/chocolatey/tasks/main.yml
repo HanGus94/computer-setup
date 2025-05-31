@@ -1,0 +1,142 @@
+---
+# Chocolatey Role - Main Tasks
+# ============================
+# Installs Chocolatey package manager and all configured software packages
+
+- name: "Check if Chocolatey is installed"
+  win_stat:
+    path: "C:\\ProgramData\\chocolatey\\choco.exe"
+  register: chocolatey_installed
+
+- name: "Install Chocolatey package manager"
+  win_shell: |
+    Set-ExecutionPolicy Bypass -Scope Process -Force;
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+  when: not chocolatey_installed.stat.exists
+  register: chocolatey_install_result
+
+- name: "Refresh environment variables after Chocolatey installation"
+  win_shell: refreshenv
+  when: chocolatey_install_result is changed
+
+- name: "Verify Chocolatey installation"
+  win_shell: choco --version
+  register: choco_version
+  changed_when: false
+
+- name: "Display Chocolatey version"
+  debug:
+    msg: "Chocolatey version: {{ choco_version.stdout | trim }}"
+
+- name: "Install essential packages"
+  chocolatey.chocolatey.win_chocolatey:
+    name: "{{ item.name }}"
+    state: present
+  register: essential_install_result
+  failed_when: false
+  loop: "{{ chocolatey.packages.essential }}"
+  when: install_categories.essential | default(true)
+
+- name: "Report essential package failures"
+  debug:
+    msg: "Failed to install essential package: {{ item.item.name }} - {{ item.item.description }}"
+  loop: "{{ essential_install_result.results }}"
+  when: 
+    - essential_install_result is defined
+    - item.failed | default(false)
+    - error_handling.package_failure_is_warning | default(true)
+
+- name: "Install development packages"
+  chocolatey.chocolatey.win_chocolatey:
+    name: "{{ item.name }}"
+    state: present
+  register: development_install_result
+  failed_when: false
+  loop: "{{ chocolatey.packages.development }}"
+  when: install_categories.development | default(true)
+
+- name: "Report development package failures"
+  debug:
+    msg: "Failed to install development package: {{ item.item.name }} - {{ item.item.description }}"
+  loop: "{{ development_install_result.results }}"
+  when: 
+    - development_install_result is defined
+    - item.failed | default(false)
+    - error_handling.package_failure_is_warning | default(true)
+
+- name: "Install media packages"
+  chocolatey.chocolatey.win_chocolatey:
+    name: "{{ item.name }}"
+    state: present
+  register: media_install_result
+  failed_when: false
+  loop: "{{ chocolatey.packages.media }}"
+  when: install_categories.media | default(true)
+
+- name: "Report media package failures"
+  debug:
+    msg: "Failed to install media package: {{ item.item.name }} - {{ item.item.description }}"
+  loop: "{{ media_install_result.results }}"
+  when: 
+    - media_install_result is defined
+    - item.failed | default(false)
+    - error_handling.package_failure_is_warning | default(true)
+
+- name: "Install gaming packages"
+  chocolatey.chocolatey.win_chocolatey:
+    name: "{{ item.name }}"
+    state: present
+  register: gaming_install_result
+  failed_when: false
+  loop: "{{ chocolatey.packages.gaming }}"
+  when: install_categories.gaming | default(true)
+
+- name: "Report gaming package failures"
+  debug:
+    msg: "Failed to install gaming package: {{ item.item.name }} - {{ item.item.description }}"
+  loop: "{{ gaming_install_result.results }}"
+  when: 
+    - gaming_install_result is defined
+    - item.failed | default(false)
+    - error_handling.package_failure_is_warning | default(true)
+
+- name: "Install utility packages"
+  chocolatey.chocolatey.win_chocolatey:
+    name: "{{ item.name }}"
+    state: present
+  register: utilities_install_result
+  failed_when: false
+  loop: "{{ chocolatey.packages.utilities }}"
+  when: install_categories.utilities | default(true)
+
+- name: "Report utility package failures"
+  debug:
+    msg: "Failed to install utility package: {{ item.item.name }} - {{ item.item.description }}"
+  loop: "{{ utilities_install_result.results }}"
+  when: 
+    - utilities_install_result is defined
+    - item.failed | default(false)
+    - error_handling.package_failure_is_warning | default(true)
+
+- name: "Create installation summary"
+  set_fact:
+    package_summary:
+      essential: "{{ essential_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.essential | length }}"
+      development: "{{ development_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.development | length }}"
+      media: "{{ media_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.media | length }}"
+      gaming: "{{ gaming_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.gaming | length }}"
+      utilities: "{{ utilities_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.utilities | length }}"
+
+- name: "Display installation summary"
+  debug:
+    msg: |
+      📦 Package Installation Summary:
+      ==============================
+      Essential: {{ package_summary.essential }} packages
+      Development: {{ package_summary.development }} packages  
+      Media: {{ package_summary.media }} packages
+      Gaming: {{ package_summary.gaming }} packages
+      Utilities: {{ package_summary.utilities }} packages
+      
+      ✅ Software installation completed! 

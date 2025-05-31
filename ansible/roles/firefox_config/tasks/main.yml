@@ -1,0 +1,68 @@
+---
+# Firefox Configuration Role - Main Tasks
+# =======================================
+# Deploys Firefox configuration files to the correct Windows locations
+
+- name: "Get Firefox profile directory"
+  win_shell: |
+    $appDataPath = [Environment]::GetFolderPath('ApplicationData')
+    $firefoxPath = Join-Path $appDataPath "Mozilla\Firefox\Profiles"
+    return $firefoxPath
+  register: firefox_profiles_path
+  changed_when: false
+
+- name: "Find existing Firefox profiles"
+  win_find:
+    paths: "{{ firefox_profiles_path.stdout | trim }}"
+    file_type: directory
+    patterns: "*.default*"
+  register: existing_firefox_profiles
+  failed_when: false
+
+- name: "Create default Firefox profile directory if none exists"
+  win_file:
+    path: "{{ firefox_profiles_path.stdout | trim }}\\default-release"
+    state: directory
+  when: existing_firefox_profiles.files | length == 0
+
+- name: "Set target Firefox profile directory"
+  set_fact:
+    firefox_target_profile: >-
+      {{
+        existing_firefox_profiles.files[0].path if existing_firefox_profiles.files | length > 0
+        else (firefox_profiles_path.stdout | trim) + '\\default-release'
+      }}
+
+- name: "Find Firefox configuration files"
+  win_find:
+    paths: "{{ firefox_config.source_directory }}"
+    file_type: file
+    recurse: yes
+  register: firefox_config_files
+  delegate_to: localhost
+  when: firefox_config.copy_configs | default(true)
+
+- name: "Copy Firefox configuration files"
+  win_copy:
+    src: "{{ item.path }}"
+    dest: "{{ firefox_target_profile }}\{{ item.filename }}"
+    backup: yes
+  loop: "{{ firefox_config_files.files }}"
+  register: firefox_copy_result
+  when: 
+    - firefox_config.copy_configs | default(true)
+    - firefox_config_files.files is defined
+
+- name: "Display Firefox configuration summary"
+  debug:
+    msg: |
+      🦊 Firefox Configuration Summary:
+      =================================
+      Target Profile Directory: {{ firefox_target_profile }}
+      Configuration Files Copied: {{ firefox_copy_result.results | length if firefox_copy_result is defined else 0 }}
+      
+      ✅ Firefox configuration deployment completed!
+      
+      📝 Next Steps:
+      - Launch Firefox to verify configuration
+      - Check that preferences and settings are properly applied 

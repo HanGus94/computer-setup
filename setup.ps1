@@ -14,16 +14,25 @@
 .PARAMETER Force
     Force reinstallation of PowerShell 7+ even if already present
 
+.PARAMETER BypassExecutionPolicy
+    Bypass execution policy restrictions for this session
+
 .EXAMPLE
     .\setup.ps1
     
 .EXAMPLE
     .\setup.ps1 -Force
+    
+.EXAMPLE
+    .\setup.ps1 -BypassExecutionPolicy
 #>
 
 param(
     [Parameter(Mandatory = $false)]
-    [switch]$Force
+    [switch]$Force,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$BypassExecutionPolicy
 )
 
 # Colors for better output
@@ -50,6 +59,86 @@ function Write-StatusMessage {
     }
     
     Write-Host "$prefix $Message" -ForegroundColor $Colors[$Type]
+}
+
+function Test-ExecutionPolicy {
+    <#
+    .SYNOPSIS
+        Tests if the current execution policy allows script execution
+    #>
+    try {
+        $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
+        $effectivePolicy = Get-ExecutionPolicy -ErrorAction SilentlyContinue
+        
+        # Policies that allow script execution
+        $allowedPolicies = @("RemoteSigned", "Unrestricted", "Bypass")
+        
+        $userPolicyOk = $currentPolicy -in $allowedPolicies
+        $effectivePolicyOk = $effectivePolicy -in $allowedPolicies
+        
+        return @{
+            CurrentUserPolicy = $currentPolicy
+            EffectivePolicy = $effectivePolicy
+            CanExecuteScripts = $userPolicyOk -or $effectivePolicyOk
+            NeedsChange = -not ($userPolicyOk -or $effectivePolicyOk)
+        }
+    }
+    catch {
+        return @{
+            CurrentUserPolicy = "Unknown"
+            EffectivePolicy = "Unknown"
+            CanExecuteScripts = $false
+            NeedsChange = $true
+        }
+    }
+}
+
+function Set-TemporaryExecutionPolicy {
+    <#
+    .SYNOPSIS
+        Sets execution policy to allow script execution, returns original policy for restoration
+    #>
+    try {
+        $originalPolicy = Get-ExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
+        
+        Write-StatusMessage "Setting execution policy to RemoteSigned for CurrentUser scope..." "Info"
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        
+        # Verify the change
+        $newPolicy = Get-ExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
+        if ($newPolicy -eq "RemoteSigned") {
+            Write-StatusMessage "Execution policy updated successfully" "Success"
+            return $originalPolicy
+        } else {
+            throw "Failed to update execution policy"
+        }
+    }
+    catch {
+        Write-StatusMessage "Warning: Could not set execution policy: $($_.Exception.Message)" "Warning"
+        Write-StatusMessage "You may need to run this as Administrator or use -BypassExecutionPolicy" "Warning"
+        return $null
+    }
+}
+
+function Restore-ExecutionPolicy {
+    <#
+    .SYNOPSIS
+        Restores the original execution policy
+    #>
+    param([string]$OriginalPolicy)
+    
+    if ([string]::IsNullOrEmpty($OriginalPolicy) -or $OriginalPolicy -eq "Undefined") {
+        return
+    }
+    
+    try {
+        Write-StatusMessage "Restoring original execution policy: $OriginalPolicy" "Info"
+        Set-ExecutionPolicy -ExecutionPolicy $OriginalPolicy -Scope CurrentUser -Force
+        Write-StatusMessage "Execution policy restored" "Success"
+    }
+    catch {
+        Write-StatusMessage "Warning: Could not restore execution policy: $($_.Exception.Message)" "Warning"
+    }
 }
 
 function Test-PowerShell7 {
@@ -207,60 +296,107 @@ function Main {
     Write-Host "Current PowerShell: $($PSVersionTable.PSVersion)" -ForegroundColor Gray
     Write-Host ""
     
-    # Check for PowerShell 7+
-    $pwsh7 = Test-PowerShell7
+    # Store original execution policy for restoration
+    $originalExecutionPolicy = $null
     
-    if ($pwsh7.Found) {
-        Write-StatusMessage "PowerShell 7+ found: $($pwsh7.Version)" "Success"
-        Write-StatusMessage "Using: $($pwsh7.Path)" "Info"
-        Write-Host ""
+    try {
+        # Check execution policy first
+        $policyCheck = Test-ExecutionPolicy
+        Write-StatusMessage "Current execution policy (CurrentUser): $($policyCheck.CurrentUserPolicy)" "Info"
+        Write-StatusMessage "Effective execution policy: $($policyCheck.EffectivePolicy)" "Info"
         
-        # Launch main deployment
-        $success = Start-MainDeployment -PowerShellPath $pwsh7.Path
-        
-        if ($success) {
-            Write-Host ""
-            Write-StatusMessage "Setup completed successfully!" "Success"
-        } else {
-            Write-StatusMessage "Setup encountered errors. Please check the output above." "Error"
-            exit 1
-        }
-    } else {
-        Write-StatusMessage "PowerShell 7+ not found. Installation required." "Warning"
-        
-        # Install PowerShell 7
-        $installSuccess = Install-PowerShell7
-        
-        if ($installSuccess) {
-            Write-Host ""
-            Write-StatusMessage "Checking for PowerShell 7+ after installation..." "Info"
+        if (-not $policyCheck.CanExecuteScripts) {
+            Write-StatusMessage "Current execution policy prevents script execution" "Warning"
             
-            # Refresh PATH and check again
-            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
-            
-            $pwsh7 = Test-PowerShell7
-            if ($pwsh7.Found) {
-                Write-StatusMessage "PowerShell 7+ is now available!" "Success"
-                Write-Host ""
+            if ($BypassExecutionPolicy) {
+                Write-StatusMessage "Bypassing execution policy restrictions for this session..." "Warning"
+                Write-Host "Note: Execution policy bypass is temporary for this session only" -ForegroundColor Yellow
+            } else {
+                Write-StatusMessage "Attempting to set execution policy to allow script execution..." "Info"
+                $originalExecutionPolicy = Set-TemporaryExecutionPolicy
                 
-                # Launch main deployment
-                $success = Start-MainDeployment -PowerShellPath $pwsh7.Path
-                
-                if ($success) {
+                if (-not $originalExecutionPolicy) {
                     Write-Host ""
-                    Write-StatusMessage "Setup completed successfully!" "Success"
-                } else {
-                    Write-StatusMessage "Setup encountered errors. Please check the output above." "Error"
+                    Write-StatusMessage "Unable to set execution policy automatically." "Error"
+                    Write-StatusMessage "Please run one of the following commands as Administrator:" "Info"
+                    Write-Host "  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser" -ForegroundColor Yellow
+                    Write-Host "  OR restart this script with: .\setup.ps1 -BypassExecutionPolicy" -ForegroundColor Yellow
+                    Write-Host "  OR run PowerShell as Administrator and use: powershell -ExecutionPolicy Bypass -File setup.ps1" -ForegroundColor Yellow
                     exit 1
                 }
-            } else {
-                Write-StatusMessage "PowerShell 7+ installation completed, but couldn't be detected." "Warning"
-                Write-StatusMessage "Please restart your terminal and run: pwsh -File deploy-files.ps1" "Info"
             }
         } else {
-            Write-StatusMessage "Failed to install PowerShell 7+. Please install manually and rerun this script." "Error"
-            Write-StatusMessage "Download from: https://github.com/PowerShell/PowerShell/releases" "Info"
-            exit 1
+            Write-StatusMessage "Execution policy allows script execution" "Success"
+        }
+        
+        Write-Host ""
+        
+        # Check for PowerShell 7+
+        $pwsh7 = Test-PowerShell7
+        
+        if ($pwsh7.Found) {
+            Write-StatusMessage "PowerShell 7+ found: $($pwsh7.Version)" "Success"
+            Write-StatusMessage "Using: $($pwsh7.Path)" "Info"
+            Write-Host ""
+            
+            # Launch main deployment
+            $success = Start-MainDeployment -PowerShellPath $pwsh7.Path
+            
+            if ($success) {
+                Write-Host ""
+                Write-StatusMessage "Setup completed successfully!" "Success"
+            } else {
+                Write-StatusMessage "Setup encountered errors. Please check the output above." "Error"
+                exit 1
+            }
+        } else {
+            Write-StatusMessage "PowerShell 7+ not found. Installation required." "Warning"
+            
+            # Install PowerShell 7
+            $installSuccess = Install-PowerShell7
+            
+            if ($installSuccess) {
+                Write-Host ""
+                Write-StatusMessage "Checking for PowerShell 7+ after installation..." "Info"
+                
+                # Refresh PATH and check again
+                $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+                
+                $pwsh7 = Test-PowerShell7
+                if ($pwsh7.Found) {
+                    Write-StatusMessage "PowerShell 7+ is now available!" "Success"
+                    Write-Host ""
+                    
+                    # Launch main deployment
+                    $success = Start-MainDeployment -PowerShellPath $pwsh7.Path
+                    
+                    if ($success) {
+                        Write-Host ""
+                        Write-StatusMessage "Setup completed successfully!" "Success"
+                    } else {
+                        Write-StatusMessage "Setup encountered errors. Please check the output above." "Error"
+                        exit 1
+                    }
+                } else {
+                    Write-StatusMessage "PowerShell 7+ installation completed, but couldn't be detected." "Warning"
+                    Write-StatusMessage "Please restart your terminal and run: pwsh -File deploy-files.ps1" "Info"
+                }
+            } else {
+                Write-StatusMessage "Failed to install PowerShell 7+. Please install manually and rerun this script." "Error"
+                Write-StatusMessage "Download from: https://github.com/PowerShell/PowerShell/releases" "Info"
+                exit 1
+            }
+        }
+    }
+    catch {
+        Write-StatusMessage "An unexpected error occurred: $($_.Exception.Message)" "Error"
+        exit 1
+    }
+    finally {
+        # Restore original execution policy if it was changed
+        if ($originalExecutionPolicy) {
+            Write-Host ""
+            Restore-ExecutionPolicy -OriginalPolicy $originalExecutionPolicy
         }
     }
 }

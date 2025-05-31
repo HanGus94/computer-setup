@@ -1,0 +1,105 @@
+---
+# Windows Features Role - Main Tasks
+# ==================================
+# Enables Windows features using ansible.windows.win_optional_feature
+
+- name: "Check virtualization support"
+  win_shell: |
+    $cpu = Get-WmiObject -Class Win32_Processor
+    $virtualizationSupported = $cpu.VirtualizationFirmwareEnabled -or $cpu.VMMonitorModeExtensions
+    return $virtualizationSupported
+  register: virtualization_check
+  changed_when: false
+
+- name: "Display virtualization support status"
+  debug:
+    msg: "Hardware virtualization support: {{ 'Enabled' if virtualization_check.stdout | trim | bool else 'Disabled or Unknown' }}"
+
+- name: "Enable Hyper-V features"
+  ansible.windows.win_optional_feature:
+    name: "{{ item }}"
+    state: present
+  register: hyperv_result
+  loop: "{{ windows_features.hyperv.features }}"
+  when: 
+    - windows_features.hyperv.enabled | default(true)
+    - virtualization_check.stdout | trim | bool
+  failed_when: false
+
+- name: "Report Hyper-V feature failures"
+  debug:
+    msg: "Failed to enable Hyper-V feature: {{ item.item }}"
+  loop: "{{ hyperv_result.results }}"
+  when: 
+    - hyperv_result is defined
+    - item.failed | default(false)
+    - error_handling.feature_failure_is_warning | default(false)
+
+- name: "Enable Windows Sandbox"
+  ansible.windows.win_optional_feature:
+    name: "{{ item }}"
+    state: present
+  register: sandbox_result
+  loop: "{{ windows_features.windows_sandbox.features }}"
+  when: 
+    - windows_features.windows_sandbox.enabled | default(true)
+    - virtualization_check.stdout | trim | bool
+  failed_when: false
+
+- name: "Report Windows Sandbox feature failures"
+  debug:
+    msg: "Failed to enable Windows Sandbox feature: {{ item.item }}"
+  loop: "{{ sandbox_result.results }}"
+  when: 
+    - sandbox_result is defined
+    - item.failed | default(false)
+    - error_handling.feature_failure_is_warning | default(false)
+
+- name: "Enable WSL2 features"
+  ansible.windows.win_optional_feature:
+    name: "{{ item }}"
+    state: present
+  register: wsl2_result
+  loop: "{{ windows_features.wsl2.features }}"
+  when: windows_features.wsl2.enabled | default(true)
+  failed_when: false
+
+- name: "Report WSL2 feature failures"
+  debug:
+    msg: "Failed to enable WSL2 feature: {{ item.item }}"
+  loop: "{{ wsl2_result.results }}"
+  when: 
+    - wsl2_result is defined
+    - item.failed | default(false)
+    - error_handling.feature_failure_is_warning | default(false)
+
+- name: "Check if any features require reboot"
+  set_fact:
+    features_require_reboot: >-
+      {{
+        (hyperv_result.results | default([]) | selectattr('reboot_required', 'defined') | selectattr('reboot_required', 'equalto', true) | list | length > 0) or
+        (sandbox_result.results | default([]) | selectattr('reboot_required', 'defined') | selectattr('reboot_required', 'equalto', true) | list | length > 0) or
+        (wsl2_result.results | default([]) | selectattr('reboot_required', 'defined') | selectattr('reboot_required', 'equalto', true) | list | length > 0)
+      }}
+
+- name: "Create features summary"
+  set_fact:
+    features_summary:
+      hyperv_enabled: "{{ hyperv_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ windows_features.hyperv.features | length if windows_features.hyperv.enabled else 0 }}"
+      sandbox_enabled: "{{ sandbox_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ windows_features.windows_sandbox.features | length if windows_features.windows_sandbox.enabled else 0 }}"
+      wsl2_enabled: "{{ wsl2_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ windows_features.wsl2.features | length if windows_features.wsl2.enabled else 0 }}"
+
+- name: "Display Windows features summary"
+  debug:
+    msg: |
+      🪟 Windows Features Summary:
+      ===========================
+      Hyper-V: {{ features_summary.hyperv_enabled }} features enabled
+      Windows Sandbox: {{ features_summary.sandbox_enabled }} features enabled
+      WSL2: {{ features_summary.wsl2_enabled }} features enabled
+      
+      {% if features_require_reboot %}
+      ⚠️  Some features require a system reboot to complete installation
+      {% endif %}
+      
+      ✅ Windows features configuration completed! 

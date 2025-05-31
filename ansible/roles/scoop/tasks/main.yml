@@ -1,0 +1,132 @@
+---
+# Scoop Role - Main Tasks
+# =======================
+# Installs Scoop package manager and Scoop-only packages
+
+- name: "Check if Scoop is installed"
+  win_stat:
+    path: "{{ ansible_env.USERPROFILE }}\\scoop\\shims\\scoop.exe"
+  register: scoop_installed
+
+- name: "Install Scoop package manager"
+  win_shell: |
+    # Set execution policy for current user if needed
+    $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
+    if ($currentPolicy -eq "Restricted") {
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+    }
+    
+    # Download and install Scoop
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+  when: not scoop_installed.stat.exists
+  register: scoop_install_result
+
+- name: "Refresh environment variables after Scoop installation"
+  win_shell: |
+    # Refresh PATH to include Scoop
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
+  when: scoop_install_result is changed
+
+- name: "Verify Scoop installation"
+  win_shell: |
+    $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
+    if (Test-Path $scoopPath) {
+        & $scoopPath --version
+    } else {
+        throw "Scoop not found after installation"
+    }
+  register: scoop_version
+  changed_when: false
+
+- name: "Display Scoop version"
+  debug:
+    msg: "Scoop version: {{ scoop_version.stdout | trim }}"
+
+- name: "Add essential Scoop buckets"
+  win_shell: |
+    $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
+    
+    # Check if bucket already exists
+    $existingBuckets = & $scoopPath bucket list 2>$null | Out-String
+    if ($existingBuckets -match "{{ item }}") {
+        Write-Output "Bucket {{ item }} already exists"
+        exit 0
+    }
+    
+    # Add the bucket
+    $result = & $scoopPath bucket add {{ item }} 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Output "Added bucket {{ item }}"
+        exit 0
+    } else {
+        Write-Output "Failed to add bucket {{ item }}: $result"
+        exit 1
+    }
+  register: bucket_results
+  failed_when: false
+  loop:
+    - "extras"
+    - "versions"
+  changed_when: "'Added bucket' in item.stdout"
+
+- name: "Report bucket addition failures"
+  debug:
+    msg: "Failed to add Scoop bucket: {{ item.item }}"
+  loop: "{{ bucket_results.results }}"
+  when: 
+    - item.failed | default(false)
+    - error_handling.package_failure_is_warning | default(true)
+
+- name: "Install Scoop packages"
+  win_shell: |
+    $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
+    
+    # Check if package is already installed
+    $installedPackages = & $scoopPath list 2>$null | Out-String
+    if ($installedPackages -match "{{ item.name }}") {
+        Write-Output "Package {{ item.name }} already installed"
+        exit 0
+    }
+    
+    # Install the package
+    Write-Output "Installing {{ item.name }}"
+    $result = & $scoopPath install {{ item.name }} 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Output "Successfully installed {{ item.name }}"
+        exit 0
+    } else {
+        Write-Output "Failed to install {{ item.name }}: $result"
+        exit 1
+    }
+  register: scoop_install_results
+  failed_when: false
+  loop: "{{ scoop.packages }}"
+  when: install_categories.scoop_packages | default(true)
+  changed_when: "'Successfully installed' in item.stdout"
+
+- name: "Report Scoop package failures"
+  debug:
+    msg: "Failed to install Scoop package: {{ item.item.name }} - {{ item.item.description }}"
+  loop: "{{ scoop_install_results.results }}"
+  when: 
+    - scoop_install_results is defined
+    - item.failed | default(false)
+    - error_handling.package_failure_is_warning | default(true)
+
+- name: "Create Scoop installation summary"
+  set_fact:
+    scoop_summary:
+      packages_installed: "{{ scoop_install_results.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ scoop.packages | length }}"
+      buckets_added: "{{ bucket_results.results | default([]) | selectattr('failed', 'undefined') | list | length }}/2"
+
+- name: "Display Scoop installation summary"
+  debug:
+    msg: |
+      📦 Scoop Installation Summary:
+      =============================
+      Scoop Version: {{ scoop_version.stdout | trim }}
+      Buckets Added: {{ scoop_summary.buckets_added }}
+      Packages Installed: {{ scoop_summary.packages_installed }}
+      
+      ✅ Scoop package installation completed! 

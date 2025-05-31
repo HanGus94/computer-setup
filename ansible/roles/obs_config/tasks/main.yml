@@ -1,0 +1,64 @@
+---
+# OBS Configuration Role - Main Tasks
+# ===================================
+# Deploys OBS Studio configuration files to the correct Windows locations
+
+- name: "Create OBS Tools directory"
+  win_file:
+    path: "{{ obs_config.target_base_directory }}"
+    state: directory
+
+- name: "Find OBS configuration directories"
+  win_find:
+    paths: "{{ obs_config.source_directory }}"
+    file_type: directory
+    recurse: no
+  register: obs_directories
+  delegate_to: localhost
+  when: obs_config.copy_configs | default(true)
+
+- name: "Copy OBS configuration directories"
+  win_copy:
+    src: "{{ item.path }}"
+    dest: "{{ obs_config.target_base_directory }}\{{ item.filename }}"
+    backup: yes
+  loop: "{{ obs_directories.files }}"
+  register: obs_copy_result
+  when: 
+    - obs_config.copy_configs | default(true)
+    - obs_directories.files is defined
+
+- name: "Find OBS configuration files"
+  win_find:
+    paths: "{{ obs_config.source_directory }}"
+    file_type: file
+    recurse: yes
+  register: obs_files
+  delegate_to: localhost
+  when: obs_config.copy_configs | default(true)
+
+- name: "Copy individual OBS configuration files"
+  win_copy:
+    src: "{{ item.path }}"
+    dest: "{{ obs_config.target_base_directory }}\{{ item.filename }}"
+    backup: yes
+  loop: "{{ obs_files.files }}"
+  register: obs_files_copy_result
+  when: 
+    - obs_config.copy_configs | default(true)
+    - obs_files.files is defined
+
+- name: "Display OBS configuration summary"
+  debug:
+    msg: |
+      🎥 OBS Configuration Summary:
+      ============================
+      Target Directory: {{ obs_config.target_base_directory }}
+      Directories Copied: {{ obs_copy_result.results | length if obs_copy_result is defined else 0 }}
+      Files Copied: {{ obs_files_copy_result.results | length if obs_files_copy_result is defined else 0 }}
+      
+      ✅ OBS configuration deployment completed!
+      
+      📝 Next Steps:
+      - Launch OBS Studio to verify configuration
+      - Check that profiles and scenes are properly loaded 

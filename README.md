@@ -19,25 +19,54 @@ This repository contains PowerShell scripts to automate the setup of a new Windo
 
 ## Quick Start
 
-1. **Run the main deployment script** (requires PowerShell 7+):
+### Option 1: Automatic Setup (Recommended)
+1. **Download and run the bootstrap script** (works with any PowerShell version):
    ```powershell
-   .\deploy-files.ps1
+   .\setup.ps1
    ```
+   This script will:
+   - Handle execution policy restrictions automatically
+   - Install PowerShell 7+ if needed
+   - Launch the main deployment script
 
-2. **Or run individual components**:
-   ```powershell
-   # Enable Windows features (requires admin)
-   .\installers\Enable-WindowsFeatures.ps1
-   
-   # Install system dependencies
-   .\installers\Install-Dependencies.ps1
-   
-   # Install applications
-   .\installers\Install-Applications.ps1
-   
-   # Install specialized tools
-   .\installers\Install-Tools.ps1
-   ```
+### Option 2: Direct Deployment
+If you already have PowerShell 7+:
+```powershell
+.\deploy-files.ps1
+```
+
+### Option 3: Individual Components
+```powershell
+# Enable Windows features (requires admin)
+.\installers\Enable-WindowsFeatures.ps1
+
+# Install system dependencies
+.\installers\Install-Dependencies.ps1
+
+# Install applications
+.\installers\Install-Applications.ps1
+
+# Install specialized tools
+.\installers\Install-Tools.ps1
+```
+
+### Handling Execution Policy Restrictions
+If you encounter "execution of scripts is disabled" errors:
+
+**Option A**: Let the script handle it automatically
+```powershell
+.\setup.ps1
+```
+
+**Option B**: Set execution policy manually (as Administrator)
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+**Option C**: Bypass for single session
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1
+```
 
 ## Scripts Overview
 
@@ -159,11 +188,37 @@ After enabling Windows features, a reboot may be required. Once complete:
 
 ## Troubleshooting
 
+### Execution Policy Issues
+If you see "execution of scripts is disabled on this system":
+
+**Automatic handling (Recommended)**:
+```powershell
+.\setup.ps1
+```
+The bootstrap script will automatically handle execution policy restrictions.
+
+**Manual resolution**:
+1. **For current user only** (recommended):
+   ```powershell
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+   ```
+
+2. **For single session** (temporary):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File setup.ps1
+   ```
+
+3. **If you don't have admin rights**:
+   ```powershell
+   .\setup.ps1 -BypassExecutionPolicy
+   ```
+
 ### Common Issues
-- **PowerShell version**: Use setup.ps1 to install PowerShell 7+
-- **Execution policy**: Run `Set-ExecutionPolicy RemoteSigned` as administrator
-- **Windows features fail**: Check hardware virtualization support in BIOS
+- **PowerShell version**: Use `setup.ps1` to automatically install PowerShell 7+
+- **Windows features fail**: Check hardware virtualization support in BIOS/UEFI
 - **Downloads fail**: Check internet connection and firewall settings
+- **Winget not found**: The script will attempt to install it automatically
+- **Access denied errors**: Run PowerShell as Administrator for system-level changes
 
 ### Logs and Status
 All scripts provide detailed status messages during execution:

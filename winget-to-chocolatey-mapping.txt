@@ -1,0 +1,62 @@
+# Winget to Chocolatey/Scoop Package Mapping
+# ==========================================
+# This file maps packages from your current Winget setup to their Chocolatey or Scoop equivalents
+# Format: [Category] Winget_ID -> Package_Manager:Package_Name (Description)
+
+## BROWSERS
+Mozilla.Firefox -> chocolatey:firefox (Privacy-focused web browser)
+
+## DEVELOPMENT
+Anysphere.Cursor -> chocolatey:cursor (AI-powered code editor) 
+Git.Git -> chocolatey:git (Version control system)
+Microsoft.WindowsTerminal -> chocolatey:microsoft-windows-terminal (Modern terminal application)
+Docker.DockerDesktop -> chocolatey:docker-desktop (Docker containerization platform)
+
+## MEDIA
+VideoLAN.VLC -> chocolatey:vlc (Universal media player)
+
+## GAMING
+Valve.Steam -> chocolatey:steam (Digital game distribution platform)
+EpicGames.EpicGamesLauncher -> chocolatey:epicgameslauncher (Digital game distribution platform)
+GOG.Galaxy -> chocolatey:goggalaxy (Digital game distribution platform)
+Blizzard.BattleNet -> chocolatey:battle.net (Digital game distribution platform)
+
+## UTILITIES
+7zip.7zip -> chocolatey:7zip (File archiver and compression tool)
+Microsoft.PowerToys -> chocolatey:powertoys (Windows system utilities)
+Discord.Discord -> chocolatey:discord (Voice and text chat for gamers)
+Nilesoft.Shell -> chocolatey:nilesoft-shell (Windows shell replacement)
+Elgato.Wavelink -> chocolatey:elgato-wavelink (Elgato Wavelink)
+Elgato.StreamDeck -> chocolatey:elgato-streamdeck (Elgato Stream Deck)
+Elgato.CameraHub -> chocolatey:elgato-camera-hub (Elgato Camera Hub)
+Google.GoogleDrive -> chocolatey:googledrive (Google Drive)
+Flameshot.Flameshot -> chocolatey:flameshot (Screenshot tool)
+CodeSector.TeraCopy -> chocolatey:teracopy (File copy utility)
+Mobatek.MobaXterm -> chocolatey:mobaxterm (Enhanced terminal for Windows)
+ajeetdsouza.zoxide -> chocolatey:zoxide (Smart cd command)
+
+## SCOOP-ONLY PACKAGES
+# These packages are only available in Scoop and will be installed via the Scoop role
+fzf (scoop) -> scoop:fzf (Fuzzy file finder)
+psfzf (scoop) -> scoop:psfzf (PowerShell wrapper for fzf)
+spotify-player (scoop) -> scoop:spotify-player (Spotify terminal player)
+
+## PACKAGES NOT AVAILABLE IN CHOCOLATEY OR NEED VERIFICATION
+# These packages may need alternative installation methods or different package names:
+# - Elgato.Wavelink (might be elgato-wavelink or similar)
+# - Elgato.CameraHub (might be elgato-camera-hub or similar)
+# - Nilesoft.Shell (might be nilesoft-shell or similar)
+
+## MIGRATION STRATEGY
+# - Chocolatey: Primary package manager for most Windows software
+# - Scoop: Used only for packages not available in Chocolatey (development tools, CLI utilities)
+# - PowerShell Gallery: Used within Scoop for PSFzf module
+
+## CHOCOLATEY PACKAGE VERIFICATION NEEDED
+# Before implementation, these packages should be verified to exist in Chocolatey:
+# - elgato-wavelink
+# - elgato-camera-hub  
+# - elgato-streamdeck
+# - nilesoft-shell
+# - battle.net (vs battlenet)
+# - goggalaxy (vs gog-galaxy) 

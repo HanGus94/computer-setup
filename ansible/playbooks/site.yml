@@ -1,0 +1,147 @@
+---
+# Main Computer Setup Playbook
+# ============================
+# This playbook orchestrates the complete Windows computer setup process
+
+- name: "Computer Setup - Complete Windows Configuration"
+  hosts: windows
+  gather_facts: yes
+  become: no
+  
+  vars:
+    setup_start_time: "{{ ansible_date_time.iso8601 }}"
+  
+  pre_tasks:
+    - name: "Display setup information"
+      debug:
+        msg: |
+          =======================================================
+          Windows Computer Setup Starting
+          =======================================================
+          Target Host: {{ inventory_hostname }}
+          Setup Time: {{ setup_start_time }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Architecture: {{ ansible_architecture }}
+          =======================================================
+      tags: always
+
+    - name: "Verify PowerShell execution policy"
+      win_shell: Get-ExecutionPolicy -Scope CurrentUser
+      register: execution_policy
+      changed_when: false
+      tags: always
+
+    - name: "Set PowerShell execution policy if needed"
+      win_shell: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+      when: execution_policy.stdout.strip() == "Restricted"
+      tags: always
+
+  tasks:
+    # Software Installation
+    - name: "Install Chocolatey and Software Packages"
+      include_role:
+        name: chocolatey
+      tags:
+        - software
+        - chocolatey
+    
+    # Scoop Package Installation
+    - name: "Install Scoop and Scoop-only Packages"
+      include_role:
+        name: scoop
+      tags:
+        - software
+        - scoop
+    
+    # Windows Features
+    - name: "Enable Windows Features"
+      include_role:
+        name: windows_features
+      tags:
+        - features
+        - windows_features
+    
+    # PowerShell Configuration
+    - name: "Deploy PowerShell Configuration"
+      include_role:
+        name: powershell_config
+      tags:
+        - config
+        - powershell
+    
+    # OBS Configuration
+    - name: "Deploy OBS Configuration"
+      include_role:
+        name: obs_config
+      tags:
+        - config
+        - obs
+    
+    # Firefox Configuration
+    - name: "Deploy Firefox Configuration"
+      include_role:
+        name: firefox_config
+      tags:
+        - config
+        - firefox
+
+  post_tasks:
+    - name: "Setup completion summary"
+      debug:
+        msg: |
+          =======================================================
+          Windows Computer Setup Complete!
+          =======================================================
+          Started: {{ setup_start_time }}
+          Completed: {{ ansible_date_time.iso8601 }}
+          Host: {{ inventory_hostname }}
+          
+          Next Steps:
+          - Reboot the system if Windows features were installed
+          - Launch applications to verify installation
+          - Configure application-specific settings as needed
+          =======================================================
+      tags: always
+
+    - name: "Check if reboot is required"
+      win_shell: |
+        # Check if reboot is pending
+        $rebootRequired = $false
+        
+        # Check Windows Update reboot flag
+        if (Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired" -ErrorAction SilentlyContinue) {
+            $rebootRequired = $true
+        }
+        
+        # Check Component Based Servicing reboot flag
+        if (Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootRequired" -ErrorAction SilentlyContinue) {
+            $rebootRequired = $true
+        }
+        
+        # Check if file rename operations are pending
+        if (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "PendingFileRenameOperations" -ErrorAction SilentlyContinue) {
+            $rebootRequired = $true
+        }
+        
+        return $rebootRequired
+      register: reboot_required
+      changed_when: false
+      tags: always
+
+    - name: "Notify about pending reboot"
+      debug:
+        msg: |
+          ⚠️  REBOOT REQUIRED ⚠️
+          Windows features have been installed that require a system restart.
+          Please reboot your system to complete the setup process.
+      when: reboot_required.stdout | trim | bool
+      tags: always
+
+    - name: "Automatic reboot (if enabled)"
+      win_reboot:
+        reboot_timeout: "{{ reboot.reboot_timeout }}"
+        msg: "Rebooting to complete Windows computer setup"
+      when: 
+        - reboot_required.stdout | trim | bool
+        - reboot.auto_reboot | default(false) | bool
+      tags: always 

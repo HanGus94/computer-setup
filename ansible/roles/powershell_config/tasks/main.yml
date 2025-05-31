@@ -1,0 +1,78 @@
+---
+# PowerShell Configuration Role - Main Tasks
+# ==========================================
+# Deploys PowerShell configuration files to the correct Windows locations
+
+- name: "Get PowerShell Documents directory"
+  win_shell: |
+    $documentsPath = [Environment]::GetFolderPath('MyDocuments')
+    $powerShellPath = Join-Path $documentsPath "PowerShell"
+    return $powerShellPath
+  register: powershell_documents_path
+  changed_when: false
+
+- name: "Create PowerShell directory if it doesn't exist"
+  win_file:
+    path: "{{ powershell_documents_path.stdout | trim }}"
+    state: directory
+
+- name: "Find PowerShell configuration files"
+  win_find:
+    paths: "{{ powershell_config.profile_source }}"
+    patterns: "*.ps1"
+    recurse: no
+  register: powershell_files
+  delegate_to: localhost
+
+- name: "Copy PowerShell profile files"
+  win_copy:
+    src: "{{ item.path }}"
+    dest: "{{ powershell_documents_path.stdout | trim }}\\{{ item.filename }}"
+    backup: yes
+  loop: "{{ powershell_files.files }}"
+  register: profile_copy_result
+
+- name: "Find additional PowerShell configuration files"
+  win_find:
+    paths: "{{ powershell_config.profile_source }}"
+    patterns: "*"
+    file_type: file
+    excludes: "*.ps1"
+    recurse: yes
+  register: additional_powershell_files
+  delegate_to: localhost
+  when: powershell_config.copy_all_files | default(true)
+
+- name: "Copy additional PowerShell configuration files"
+  win_copy:
+    src: "{{ item.path }}"
+    dest: "{{ powershell_documents_path.stdout | trim }}\\{{ item.filename }}"
+    backup: yes
+  loop: "{{ additional_powershell_files.files }}"
+  register: additional_copy_result
+  when: 
+    - powershell_config.copy_all_files | default(true)
+    - additional_powershell_files.files is defined
+
+- name: "Set PowerShell profile as main profile"
+  win_copy:
+    src: "{{ powershell_config.profile_source }}\\Microsoft.PowerShell_profile.ps1"
+    dest: "{{ powershell_documents_path.stdout | trim }}\\Microsoft.PowerShell_profile.ps1"
+    backup: yes
+  register: main_profile_result
+  when: powershell_config.profile_source + "\\Microsoft.PowerShell_profile.ps1" is file
+
+- name: "Display PowerShell configuration summary"
+  debug:
+    msg: |
+      🔧 PowerShell Configuration Summary:
+      ===================================
+      Target Directory: {{ powershell_documents_path.stdout | trim }}
+      Profile Files Copied: {{ profile_copy_result.results | length }}
+      Additional Files Copied: {{ additional_copy_result.results | length if additional_copy_result is defined else 0 }}
+      
+      ✅ PowerShell configuration deployment completed!
+      
+      📝 Next Steps:
+      - Restart PowerShell to load the new profile
+      - The profile will be automatically loaded in new PowerShell sessions 
