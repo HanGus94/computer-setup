@@ -1,0 +1,26 @@
+---
+# Debug Variables Playbook
+# ========================
+# Simple test to see if group_vars are being loaded
+
+- name: "Debug Variables Test"
+  hosts: windows
+  gather_facts: no
+  
+  tasks:
+    - name: "Debug all variables"
+      debug:
+        msg: |
+          All variables:
+          chocolatey: {{ chocolatey | default('UNDEFINED') }}
+          scoop: {{ scoop | default('UNDEFINED') }}
+          install_categories: {{ install_categories | default('UNDEFINED') }}
+    
+    - name: "Test chocolatey.packages.essential"
+      debug:
+        var: chocolatey.packages.essential
+      when: chocolatey is defined
+    
+    - name: "Check group_vars loading"
+      debug:
+        msg: "Group vars are {{ 'working' if chocolatey is defined else 'NOT working' }}" 

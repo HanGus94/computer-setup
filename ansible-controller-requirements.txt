@@ -1,0 +1,17 @@
+# Python Requirements for Ansible Controller
+# ==========================================
+# Install with: pip install -r ansible-controller-requirements.txt
+
+# Core Ansible Windows support
+pywinrm>=0.4.1
+
+# Additional authentication methods
+pywinrm[credssp]>=0.4.1
+pywinrm[kerberos]>=0.4.1
+
+# HTTP libraries for better connectivity
+requests>=2.25.0
+requests-credssp>=1.2.0
+
+# Optional: Ansible itself if not installed via system packages
+# ansible>=4.0.0 

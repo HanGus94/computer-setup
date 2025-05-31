@@ -16,18 +16,64 @@
   when: not chocolatey_installed.stat.exists
   register: chocolatey_install_result
 
-- name: "Refresh environment variables after Chocolatey installation"
-  win_shell: refreshenv
+- name: "Force refresh environment variables after Chocolatey installation"
+  win_shell: |
+    # Multiple methods to ensure environment refresh
+    refreshenv
+    
+    # Manually update PATH for current session
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    
+    # Specifically add Chocolatey to PATH if not present
+    $chocoPath = "C:\ProgramData\chocolatey\bin"
+    if ($env:PATH -notlike "*$chocoPath*") {
+        $env:PATH = "$chocoPath;$env:PATH"
+    }
+    
+    # Verify choco is now available
+    $chocoExe = Get-Command choco.exe -ErrorAction SilentlyContinue
+    if ($chocoExe) {
+        Write-Output "Chocolatey found at: $($chocoExe.Source)"
+    } else {
+        Write-Output "Chocolatey still not found in PATH"
+        throw "Failed to add Chocolatey to PATH"
+    }
   when: chocolatey_install_result is changed
+  register: chocolatey_refresh_result
 
-- name: "Verify Chocolatey installation"
-  win_shell: choco --version
+- name: "Verify Chocolatey installation and PATH"
+  win_shell: |
+    # Try multiple ways to find and execute choco
+    $chocoCommands = @(
+        "choco",
+        "C:\ProgramData\chocolatey\bin\choco.exe",
+        "C:\ProgramData\chocolatey\choco.exe"
+    )
+    
+    $chocoFound = $false
+    foreach ($cmd in $chocoCommands) {
+        try {
+            $version = & $cmd --version 2>$null
+            if ($version) {
+                Write-Output "Chocolatey version: $version"
+                Write-Output "Chocolatey command: $cmd"
+                $chocoFound = $true
+                break
+            }
+        } catch {
+            continue
+        }
+    }
+    
+    if (-not $chocoFound) {
+        throw "Chocolatey installation verification failed"
+    }
   register: choco_version
   changed_when: false
 
 - name: "Display Chocolatey version"
   debug:
-    msg: "Chocolatey version: {{ choco_version.stdout | trim }}"
+    msg: "{{ choco_version.stdout_lines | join(' ') }}"
 
 - name: "Install essential packages"
   chocolatey.chocolatey.win_chocolatey:
@@ -37,6 +83,8 @@
   failed_when: false
   loop: "{{ chocolatey.packages.essential }}"
   when: install_categories.essential | default(true)
+  environment:
+    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
 
 - name: "Report essential package failures"
   debug:
@@ -55,6 +103,8 @@
   failed_when: false
   loop: "{{ chocolatey.packages.development }}"
   when: install_categories.development | default(true)
+  environment:
+    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
 
 - name: "Report development package failures"
   debug:
@@ -73,6 +123,8 @@
   failed_when: false
   loop: "{{ chocolatey.packages.media }}"
   when: install_categories.media | default(true)
+  environment:
+    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
 
 - name: "Report media package failures"
   debug:
@@ -91,6 +143,8 @@
   failed_when: false
   loop: "{{ chocolatey.packages.gaming }}"
   when: install_categories.gaming | default(true)
+  environment:
+    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
 
 - name: "Report gaming package failures"
   debug:
@@ -109,6 +163,8 @@
   failed_when: false
   loop: "{{ chocolatey.packages.utilities }}"
   when: install_categories.utilities | default(true)
+  environment:
+    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
 
 - name: "Report utility package failures"
   debug:
