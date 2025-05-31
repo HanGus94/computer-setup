@@ -7,6 +7,7 @@
   win_stat:
     path: "C:\\ProgramData\\chocolatey\\choco.exe"
   register: chocolatey_installed
+  tags: [chocolatey, software]
 
 - name: "Install Chocolatey package manager"
   win_shell: |
@@ -15,6 +16,7 @@
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
   when: not chocolatey_installed.stat.exists
   register: chocolatey_install_result
+  tags: [chocolatey, software]
 
 - name: "Force refresh environment variables after Chocolatey installation"
   win_shell: |
@@ -40,6 +42,7 @@
     }
   when: chocolatey_install_result is changed
   register: chocolatey_refresh_result
+  tags: [chocolatey, software]
 
 - name: "Verify Chocolatey installation and PATH"
   win_shell: |
@@ -70,10 +73,12 @@
     }
   register: choco_version
   changed_when: false
+  tags: [chocolatey, software]
 
 - name: "Display Chocolatey version"
   debug:
     msg: "{{ choco_version.stdout_lines | join(' ') }}"
+  tags: [chocolatey, software]
 
 - name: "Install essential packages"
   chocolatey.chocolatey.win_chocolatey:
@@ -84,7 +89,8 @@
   loop: "{{ chocolatey.packages.essential }}"
   when: install_categories.essential | default(true)
   environment:
-    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
+    PATH: "C:/ProgramData/chocolatey/bin;{{ ansible_env.PATH }}"
+  tags: [chocolatey, software, packages]
 
 - name: "Report essential package failures"
   debug:
@@ -94,6 +100,7 @@
     - essential_install_result is defined
     - item.failed | default(false)
     - error_handling.package_failure_is_warning | default(true)
+  tags: [chocolatey, software, packages]
 
 - name: "Install development packages"
   chocolatey.chocolatey.win_chocolatey:
@@ -104,7 +111,8 @@
   loop: "{{ chocolatey.packages.development }}"
   when: install_categories.development | default(true)
   environment:
-    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
+    PATH: "C:/ProgramData/chocolatey/bin;{{ ansible_env.PATH }}"
+  tags: [chocolatey, software, packages]
 
 - name: "Report development package failures"
   debug:
@@ -114,6 +122,7 @@
     - development_install_result is defined
     - item.failed | default(false)
     - error_handling.package_failure_is_warning | default(true)
+  tags: [chocolatey, software, packages]
 
 - name: "Install media packages"
   chocolatey.chocolatey.win_chocolatey:
@@ -124,7 +133,8 @@
   loop: "{{ chocolatey.packages.media }}"
   when: install_categories.media | default(true)
   environment:
-    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
+    PATH: "C:/ProgramData/chocolatey/bin;{{ ansible_env.PATH }}"
+  tags: [chocolatey, software, packages]
 
 - name: "Report media package failures"
   debug:
@@ -134,6 +144,7 @@
     - media_install_result is defined
     - item.failed | default(false)
     - error_handling.package_failure_is_warning | default(true)
+  tags: [chocolatey, software, packages]
 
 - name: "Install gaming packages"
   chocolatey.chocolatey.win_chocolatey:
@@ -144,7 +155,8 @@
   loop: "{{ chocolatey.packages.gaming }}"
   when: install_categories.gaming | default(true)
   environment:
-    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
+    PATH: "C:/ProgramData/chocolatey/bin;{{ ansible_env.PATH }}"
+  tags: [chocolatey, software, packages]
 
 - name: "Report gaming package failures"
   debug:
@@ -154,6 +166,7 @@
     - gaming_install_result is defined
     - item.failed | default(false)
     - error_handling.package_failure_is_warning | default(true)
+  tags: [chocolatey, software, packages]
 
 - name: "Install utility packages"
   chocolatey.chocolatey.win_chocolatey:
@@ -164,7 +177,8 @@
   loop: "{{ chocolatey.packages.utilities }}"
   when: install_categories.utilities | default(true)
   environment:
-    PATH: "C:\\ProgramData\\chocolatey\\bin;{{ ansible_env.PATH }}"
+    PATH: "C:/ProgramData/chocolatey/bin;{{ ansible_env.PATH }}"
+  tags: [chocolatey, software, packages]
 
 - name: "Report utility package failures"
   debug:
@@ -174,6 +188,7 @@
     - utilities_install_result is defined
     - item.failed | default(false)
     - error_handling.package_failure_is_warning | default(true)
+  tags: [chocolatey, software, packages]
 
 - name: "Create installation summary"
   set_fact:
@@ -183,6 +198,7 @@
       media: "{{ media_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.media | length }}"
       gaming: "{{ gaming_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.gaming | length }}"
       utilities: "{{ utilities_install_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ chocolatey.packages.utilities | length }}"
+  tags: [chocolatey, software]
 
 - name: "Display installation summary"
   debug:
@@ -195,4 +211,5 @@
       Gaming: {{ package_summary.gaming }} packages
       Utilities: {{ package_summary.utilities }} packages
       
-      ✅ Software installation completed! 
+      ✅ Software installation completed!
+  tags: [chocolatey, software] 
