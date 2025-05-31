@@ -279,6 +279,27 @@ $ApplicationCategories = @{
             Essential = $false
             Description = "MobaXterm"
             PackageManager = "winget"
+        },
+        @{
+            Name = "Zoxide"
+            Id = "ajeetdsouza.zoxide"
+            Essential = $false
+            Description = "Zoxide"
+            PackageManager = "winget"
+        },
+        @{
+            Name = "Fzf"
+            Id = "fzf"
+            Essential = $false
+            Description = "Fzf"
+            PackageManager = "scoop"
+        },
+        @{
+            Name = "PSFzf"
+            Id = "psfzf"
+            Essential = $false
+            Description = "PSFzf"
+            PackageManager = "scoop"
         }
     )
 }

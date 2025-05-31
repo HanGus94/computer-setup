@@ -6,7 +6,7 @@
 
 .DESCRIPTION
     Sets up a complete PowerShell environment with:
-    - Nerd Fonts (CascadiaCove) for terminal icons and symbols
+    - Nerd Fonts (CascadiaCode) for terminal icons and symbols
     - Oh-My-Posh for customizable prompt themes
     - Terminal-Icons for file and folder icons
     - PSReadLine for enhanced command line editing
@@ -25,7 +25,7 @@
     Skip PowerShell module installation
 
 .PARAMETER FontName
-    Specify which Nerd Font to install (default: CascadiaCove)
+    Specify which Nerd Font to install (default: CascadiaCode)
 
 .EXAMPLE
     .\Setup-PowerShell.ps1
@@ -54,7 +54,7 @@ param(
     [switch]$SkipModules,
     
     [Parameter(Mandatory = $false)]
-    [string]$FontName = "CascadiaCove"
+    [string]$FontName = "CascadiaCode"
 )
 
 # Import the shared module
@@ -66,7 +66,7 @@ $PowerShellComponents = @{
         Name = "Nerd Fonts"
         Description = "Fonts with icons and symbols for terminal applications"
         Repository = "ryanoasis/nerd-fonts"
-        DefaultFont = "CascadiaCove"
+        DefaultFont = "CascadiaCode"
         Essential = $true
     }
     
@@ -85,23 +85,6 @@ $PowerShellComponents = @{
             Repository = "PowerShell/PSResourceGet"
             Essential = $true
         }
-        "PSReadLine" = @{
-            Name = "PSReadLine"
-            Description = "Enhanced command line editing"
-            MinimumVersion = "2.2.6"
-            Essential = $true
-        }
-        "PowerShellGet" = @{
-            Name = "PowerShellGet"
-            Description = "PowerShell module management"
-            MinimumVersion = "3.0.0"
-            Essential = $true
-        }
-        "Microsoft.PowerShell.ConsoleGuiTools" = @{
-            Name = "ConsoleGuiTools"
-            Description = "Out-ConsoleGridView and Show-ObjectTree cmdlets"
-            Essential = $false
-        }
         "PSFzf" = @{
             Name = "PSFzf"
             Description = "Fuzzy finder integration for PowerShell"
@@ -114,7 +97,16 @@ function Test-NerdFontInstalled {
     param([string]$FontName)
     
     try {
-        # Check if font is installed by looking in Windows Fonts directory
+        # Check if font is installed via Scoop
+        if (Get-Command scoop -ErrorAction SilentlyContinue) {
+            $scoopFontName = $FontName.ToLower() -replace "code", "-code"
+            $installedApps = & scoop list 2>&1 | Select-String $scoopFontName
+            if ($installedApps) {
+                return $true
+            }
+        }
+        
+        # Fallback: Check if font files exist in Windows Fonts directory
         $fontPaths = @(
             "$env:WINDIR\Fonts",
             "$env:LOCALAPPDATA\Microsoft\Windows\Fonts"
@@ -134,6 +126,89 @@ function Test-NerdFontInstalled {
     }
 }
 
+function Test-ScoopInstalled {
+    try {
+        $scoopPath = Get-Command scoop -ErrorAction SilentlyContinue
+        return $null -ne $scoopPath
+    }
+    catch {
+        return $false
+    }
+}
+
+function Install-Scoop {
+    Write-StatusMessage "Installing Scoop package manager..." "Info"
+    
+    try {
+        # Check if Scoop is already in PATH but not detected
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+        
+        if (Test-ScoopInstalled) {
+            Write-StatusMessage "Scoop is already installed" "Success"
+            return $true
+        }
+        
+        # Install Scoop using the standard method
+        Write-StatusMessage "Downloading and installing Scoop..." "Info"
+        
+        # Set execution policy for current process
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        
+        # Install Scoop
+        Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+        
+        # Refresh PATH
+        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+        
+        # Verify installation
+        Start-Sleep -Seconds 3
+        if (Test-ScoopInstalled) {
+            Write-StatusMessage "Scoop installed successfully" "Success"
+            return $true
+        } else {
+            Write-StatusMessage "Scoop installation completed but command not found in PATH" "Warning"
+            Write-StatusMessage "You may need to restart your terminal" "Info"
+            return $false
+        }
+    }
+    catch {
+        Write-StatusMessage "Failed to install Scoop: $($_.Exception.Message)" "Error"
+        return $false
+    }
+}
+
+function Add-ScoopBucket {
+    param([string]$BucketName, [string]$BucketUrl = $null)
+    
+    try {
+        # Check if bucket already exists
+        $bucketCheckResult = & scoop bucket list 2>&1
+        if ($bucketCheckResult -match $BucketName) {
+            Write-StatusMessage "Scoop bucket '$BucketName' already added" "Success"
+            return $true
+        }
+        
+        # Add bucket
+        Write-StatusMessage "Adding Scoop bucket: $BucketName" "Info"
+        if ($BucketUrl) {
+            & scoop bucket add $BucketName $BucketUrl
+        } else {
+            & scoop bucket add $BucketName
+        }
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-StatusMessage "Successfully added Scoop bucket: $BucketName" "Success"
+            return $true
+        } else {
+            throw "Scoop bucket add command failed with exit code: $LASTEXITCODE"
+        }
+    }
+    catch {
+        Write-StatusMessage "Failed to add Scoop bucket '$BucketName': $($_.Exception.Message)" "Error"
+        return $false
+    }
+}
+
 function Install-NerdFont {
     param([string]$FontName)
     
@@ -146,85 +221,48 @@ function Install-NerdFont {
             return $true
         }
         
-        # Get latest release from Nerd Fonts repository
-        $releaseInfo = Get-GitHubLatestRelease -Repository "ryanoasis/nerd-fonts" -FilePattern "$FontName.zip"
-        
-        if (-not $releaseInfo) {
-            Write-StatusMessage "Could not find font '$FontName' in Nerd Fonts releases" "Error"
-            return $false
+        # Ensure Scoop is available
+        if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
+            throw "Scoop package manager is not installed or not in PATH. Please install Scoop first."
         }
         
-        Write-StatusMessage "Found $FontName font version $($releaseInfo.Version)" "Info"
-        
-        # Download font
-        $tempDir = Join-Path $env:TEMP "nerd-fonts-$FontName"
-        if (Test-Path $tempDir) {
-            Remove-Item $tempDir -Recurse -Force
-        }
-        New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
-        
-        $fontArchive = Join-Path $tempDir "$FontName.zip"
-        
-        if (-not (Invoke-FileDownload -Url $releaseInfo.DownloadUrl -OutputPath $fontArchive -Description "Nerd Font $FontName")) {
-            throw "Failed to download font"
+        # Add nerd-fonts bucket
+        if (-not (Add-ScoopBucket -BucketName "nerd-fonts")) {
+            throw "Failed to add nerd-fonts bucket"
         }
         
-        # Extract font files
-        $extractPath = Join-Path $tempDir "extracted"
-        Expand-Archive -Path $fontArchive -DestinationPath $extractPath -Force
-        
-        # Install fonts
-        $fontFiles = Get-ChildItem -Path $extractPath -Filter "*.ttf" -Recurse
-        if ($fontFiles.Count -eq 0) {
-            $fontFiles = Get-ChildItem -Path $extractPath -Filter "*.otf" -Recurse
-        }
-        
-        if ($fontFiles.Count -eq 0) {
-            throw "No font files found in downloaded archive"
-        }
-        
-        Write-StatusMessage "Installing $($fontFiles.Count) font files..." "Info"
-        
-        # Install fonts to user directory (doesn't require admin)
-        $userFontsPath = "$env:LOCALAPPDATA\Microsoft\Windows\Fonts"
-        if (-not (Test-Path $userFontsPath)) {
-            New-Item -Path $userFontsPath -ItemType Directory -Force | Out-Null
-        }
-        
-        $installedCount = 0
-        foreach ($fontFile in $fontFiles) {
-            try {
-                $targetPath = Join-Path $userFontsPath $fontFile.Name
-                Copy-Item $fontFile.FullName $targetPath -Force
-                $installedCount++
-            }
-            catch {
-                Write-StatusMessage "Warning: Failed to install $($fontFile.Name)" "Warning"
+        # Convert font name to Scoop package name (lowercase with hyphens)
+        $scoopFontName = switch ($FontName) {
+            "CascadiaCode" { "cascadia-code" }
+            "FiraCode" { "fira-code" }
+            "JetBrainsMono" { "jetbrains-mono" }
+            "Hack" { "hack" }
+            "SourceCodePro" { "source-code-pro" }
+            "UbuntuMono" { "ubuntu-mono" }
+            "DejaVuSansMono" { "dejavusansmono" }
+            default { 
+                # Generic conversion: CamelCase to kebab-case
+                $FontName -creplace '([A-Z])', '-$1' -replace '^-', '' | ForEach-Object { $_.ToLower() }
             }
         }
         
-        # Register fonts with Windows (requires registry modification)
-        try {
-            foreach ($fontFile in $fontFiles) {
-                $fontName = [System.IO.Path]::GetFileNameWithoutExtension($fontFile.Name)
-                $registryPath = "HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
-                $registryName = "$fontName (TrueType)"
-                $fontPath = Join-Path $userFontsPath $fontFile.Name
-                
-                Set-ItemProperty -Path $registryPath -Name $registryName -Value $fontPath -ErrorAction SilentlyContinue
-            }
-        }
-        catch {
-            Write-StatusMessage "Warning: Could not register all fonts with Windows" "Warning"
+        Write-StatusMessage "Installing font package: $scoopFontName" "Info"
+        
+        # Install the font using Scoop
+        if ($Force) {
+            & scoop install $scoopFontName --force
+        } else {
+            & scoop install $scoopFontName
         }
         
-        # Cleanup
-        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-        
-        Write-StatusMessage "Successfully installed $installedCount font files for $FontName" "Success"
-        Write-StatusMessage "Note: Restart terminal applications to see the new fonts" "Info"
-        
-        return $true
+        if ($LASTEXITCODE -eq 0) {
+            Write-StatusMessage "✅ Successfully installed $FontName Nerd Font via Scoop" "Success"
+            Write-StatusMessage "Both Regular and Mono variants are included" "Success"
+            Write-StatusMessage "Note: Restart terminal applications to see the new fonts" "Info"
+            return $true
+        } else {
+            throw "Scoop install command failed with exit code: $LASTEXITCODE"
+        }
         
     }
     catch {
