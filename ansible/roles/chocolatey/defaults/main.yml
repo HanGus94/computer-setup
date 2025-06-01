@@ -44,6 +44,8 @@ chocolatey:
     
     # Utilities
     utilities:
+      - name: "powershell-core"
+        description: "PowerShell Core runtime"
       - name: "powertoys"
         description: "Windows system utilities"
       - name: "discord"
