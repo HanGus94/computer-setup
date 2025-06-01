@@ -1,12 +1,15 @@
 ---
-# OBS Configuration Role Default Variables
-# ========================================
+# OBS Studio Installation Role Default Variables
+# ==============================================
 
-# OBS Configuration
+# OBS Installation Configuration
 obs_config:
-  source_directory: "../../configs/obs/"
-  target_base_directory: "C:/Tools/"
-  copy_configs: true
+  target_base_directory: "C:/Tools"
+  cleanup_downloads: true
+  installation_directories:
+    - "Streaming"
+    - "Recording"
+    - "Testing"
 
 # Installation Categories (for selective installation)
 install_categories:

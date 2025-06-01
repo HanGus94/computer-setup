@@ -90,12 +90,12 @@
         - config
         - powershell
     
-    # OBS Configuration
-    - name: "Deploy OBS Configuration"
+    # OBS Studio Installation
+    - name: "Install OBS Studio (Portable)"
       include_role:
         name: obs_config
       tags:
-        - config
+        - software
         - obs
     
     # Firefox Configuration

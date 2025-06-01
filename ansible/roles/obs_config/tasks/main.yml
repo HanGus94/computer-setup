@@ -1,64 +1,106 @@
 ---
-# OBS Configuration Role - Main Tasks
-# ===================================
-# Deploys OBS Studio configuration files to the correct Windows locations
+# OBS Studio Installation Role - Main Tasks
+# =========================================
+# Downloads OBS Studio and creates portable installations
 
-- name: "Create OBS Tools directory"
+- name: "Create base Tools directory"
   win_file:
     path: "{{ obs_config.target_base_directory }}"
     state: directory
 
-- name: "Find OBS configuration directories on controller"
-  find:
-    paths: "{{ obs_config.source_directory }}"
-    file_type: directory
-    recurse: no
-  register: obs_directories
+- name: "Create OBS installation directories"
+  win_file:
+    path: "{{ obs_config.target_base_directory }}\\{{ item }}"
+    state: directory
+  loop:
+    - "Streaming"
+    - "Recording" 
+    - "Testing"
+
+- name: "Get latest OBS Studio release info from GitHub"
+  uri:
+    url: "https://api.github.com/repos/obsproject/obs-studio/releases/latest"
+    method: GET
+    return_content: yes
+  register: obs_release_info
   delegate_to: localhost
-  when: obs_config.copy_configs | default(true)
 
-- name: "Copy OBS configuration directories"
-  win_copy:
-    src: "{{ item.path }}"
-    dest: "{{ obs_config.target_base_directory }}\\\{{ item.path | basename }}"
-    backup: yes
-  loop: "{{ obs_directories.files }}"
-  register: obs_copy_result
-  when: 
-    - obs_config.copy_configs | default(true)
-    - obs_directories.files is defined
+- name: "Extract OBS download URL"
+  set_fact:
+    obs_download_url: "{{ obs_release_info.json.assets | selectattr('name', 'match', '.*Windows.*\\.zip$') | map(attribute='browser_download_url') | first }}"
+    obs_version: "{{ obs_release_info.json.tag_name }}"
 
-- name: "Find OBS configuration files on controller"
-  find:
-    paths: "{{ obs_config.source_directory }}"
-    file_type: file
-    recurse: yes
-  register: obs_files
-  delegate_to: localhost
-  when: obs_config.copy_configs | default(true)
-
-- name: "Copy individual OBS configuration files"
-  win_copy:
-    src: "{{ item.path }}"
-    dest: "{{ obs_config.target_base_directory }}\\\{{ item.path | basename }}"
-    backup: yes
-  loop: "{{ obs_files.files }}"
-  register: obs_files_copy_result
-  when: 
-    - obs_config.copy_configs | default(true)
-    - obs_files.files is defined
-
-- name: "Display OBS configuration summary"
+- name: "Display OBS version info"
   debug:
     msg: |
-      🎥 OBS Configuration Summary:
-      ============================
-      Target Directory: {{ obs_config.target_base_directory }}
-      Directories Copied: {{ obs_copy_result.results | length if obs_copy_result is defined else 0 }}
-      Files Copied: {{ obs_files_copy_result.results | length if obs_files_copy_result is defined else 0 }}
+      📦 OBS Studio Download Info:
+      ===========================
+      Version: {{ obs_version }}
+      Download URL: {{ obs_download_url }}
+
+- name: "Download OBS Studio portable"
+  win_get_url:
+    url: "{{ obs_download_url }}"
+    dest: "{{ obs_config.target_base_directory }}\\obs-studio-{{ obs_version }}.zip"
+    timeout: 300
+  register: obs_download
+
+- name: "Extract OBS to Streaming directory"
+  win_unzip:
+    src: "{{ obs_download.dest }}"
+    dest: "{{ obs_config.target_base_directory }}\\Streaming"
+    delete_archive: no
+
+- name: "Extract OBS to Recording directory"
+  win_unzip:
+    src: "{{ obs_download.dest }}"
+    dest: "{{ obs_config.target_base_directory }}\\Recording"
+    delete_archive: no
+
+- name: "Extract OBS to Testing directory"
+  win_unzip:
+    src: "{{ obs_download.dest }}"
+    dest: "{{ obs_config.target_base_directory }}\\Testing"
+    delete_archive: no
+
+- name: "Find OBS executable directories"
+  win_find:
+    paths: 
+      - "{{ obs_config.target_base_directory }}\\Streaming"
+      - "{{ obs_config.target_base_directory }}\\Recording"
+      - "{{ obs_config.target_base_directory }}\\Testing"
+    patterns: "obs64.exe"
+    recurse: yes
+  register: obs_exe_locations
+
+- name: "Create portable_mode.txt in each OBS installation"
+  win_file:
+    path: "{{ item.path | dirname }}\\portable_mode.txt"
+    state: touch
+  loop: "{{ obs_exe_locations.files }}"
+
+- name: "Clean up downloaded zip file"
+  win_file:
+    path: "{{ obs_download.dest }}"
+    state: absent
+  when: obs_config.cleanup_downloads | default(true)
+
+- name: "Display OBS installation summary"
+  debug:
+    msg: |
+      🎥 OBS Studio Installation Summary:
+      ==================================
+      Version: {{ obs_version }}
+      Installations Created: {{ obs_exe_locations.files | length }}
       
-      ✅ OBS configuration deployment completed!
+      📁 Portable OBS Locations:
+      {% for file in obs_exe_locations.files %}
+      - {{ file.path | dirname | replace(obs_config.target_base_directory + '\\', '') }}
+      {% endfor %}
       
-      📝 Next Steps:
-      - Launch OBS Studio to verify configuration
-      - Check that profiles and scenes are properly loaded 
+      ✅ OBS Studio portable installations completed!
+      
+      📝 Usage:
+      - Each installation is completely portable
+      - Launch obs64.exe from any directory to use that configuration
+      - Streaming/Recording/Testing have separate settings and profiles 
