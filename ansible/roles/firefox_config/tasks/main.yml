@@ -33,6 +33,11 @@
         else (firefox_profiles_path.stdout | trim) + '\\default-release'
       }}
 
+- name: "Create chrome directory for userChrome.css"
+  win_file:
+    path: "{{ firefox_target_profile }}\\chrome"
+    state: directory
+
 - name: "Find Firefox configuration files on controller"
   find:
     paths: "{{ firefox_config.source_directory }}"
@@ -42,16 +47,29 @@
   delegate_to: localhost
   when: firefox_config.copy_configs | default(true)
 
-- name: "Copy Firefox configuration files"
+- name: "Copy userChrome.css to chrome directory"
+  win_copy:
+    src: "{{ item.path }}"
+    dest: "{{ firefox_target_profile }}\\chrome\\{{ item.path | basename }}"
+    backup: yes
+  loop: "{{ firefox_config_files.files }}"
+  when: 
+    - firefox_config.copy_configs | default(true)
+    - firefox_config_files.files is defined
+    - item.path | basename == "userChrome.css"
+  register: userchrome_copy_result
+
+- name: "Copy other Firefox configuration files to profile root"
   win_copy:
     src: "{{ item.path }}"
     dest: "{{ firefox_target_profile }}\\{{ item.path | basename }}"
     backup: yes
   loop: "{{ firefox_config_files.files }}"
-  register: firefox_copy_result
   when: 
     - firefox_config.copy_configs | default(true)
     - firefox_config_files.files is defined
+    - item.path | basename != "userChrome.css"
+  register: other_files_copy_result
 
 - name: "Display Firefox configuration summary"
   debug:
@@ -59,7 +77,9 @@
       🦊 Firefox Configuration Summary:
       =================================
       Target Profile Directory: {{ firefox_target_profile }}
-      Configuration Files Copied: {{ firefox_copy_result.results | length if firefox_copy_result is defined else 0 }}
+      Chrome Directory Created: {{ firefox_target_profile }}\\chrome
+      userChrome.css Copied: {{ userchrome_copy_result.results | length if userchrome_copy_result is defined else 0 }}
+      Other Files Copied: {{ other_files_copy_result.results | length if other_files_copy_result is defined else 0 }}
       
       ✅ Firefox configuration deployment completed!
       
@@ -67,4 +87,5 @@
       - Launch Firefox to verify configuration
       - Enable userChrome.css in about:config (toolkit.legacyUserProfileCustomizations.stylesheets = true)
       - Install Sidebery extension if not already installed
+      - Restart Firefox to apply userChrome.css changes
       - Check that preferences and settings are properly applied 
