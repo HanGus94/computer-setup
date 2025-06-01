@@ -1,0 +1,24 @@
+---
+# Firefox Configuration Role Default Variables
+# ============================================
+
+# Firefox Configuration
+firefox_config:
+  source_directory: "../../configs/firefox/"
+  copy_configs: true
+
+# Installation Categories (for selective installation)
+install_categories:
+  essential: true
+  development: true
+  media: true
+  gaming: true
+  utilities: true
+  scoop_packages: true
+  windows_features: true
+
+# Error Handling
+error_handling:
+  continue_on_package_failure: true
+  package_failure_is_warning: true
+  feature_failure_is_warning: false 

@@ -12,6 +12,9 @@ windows_features:
       - "Microsoft-Hyper-V"
       - "Microsoft-Hyper-V-Tools-All"
       - "Microsoft-Hyper-V-Management-PowerShell"
+      - "Microsoft-Hyper-V-Hypervisor"
+      - "Microsoft-Hyper-V-Services"
+      - "Microsoft-Hyper-V-Management-Clients"
   
   # Windows Sandbox
   windows_sandbox:

@@ -1,0 +1,25 @@
+---
+# PowerShell Configuration Role Default Variables
+# ===============================================
+
+# PowerShell Configuration
+powershell_config:
+  profile_source: "../../configs/powershell/"
+  profile_destination: "Documents/PowerShell/"
+  copy_all_files: true
+
+# Installation Categories (for selective installation)
+install_categories:
+  essential: true
+  development: true
+  media: true
+  gaming: true
+  utilities: true
+  scoop_packages: true
+  windows_features: true
+
+# Error Handling
+error_handling:
+  continue_on_package_failure: true
+  package_failure_is_warning: true
+  feature_failure_is_warning: false 

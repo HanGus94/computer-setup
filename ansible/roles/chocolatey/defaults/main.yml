@@ -15,10 +15,12 @@ chocolatey:
     
     # Development Tools
     development:
-      - name: "cursoride"
+      - name: "cursor"
         description: "AI-powered code editor"
       - name: "git"
         description: "Version control system"
+      - name: "microsoft-windows-terminal"
+        description: "Modern terminal application"
       - name: "docker-desktop"
         description: "Docker containerization platform"
     
@@ -26,6 +28,8 @@ chocolatey:
     media:
       - name: "vlc"
         description: "Universal media player"
+      - name: "spotify"
+        description: "Music streaming service"
     
     # Gaming Platforms
     gaming:
@@ -35,6 +39,8 @@ chocolatey:
         description: "Epic Games digital distribution platform"
       - name: "goggalaxy"
         description: "GOG digital game distribution platform"
+      - name: "battle.net"
+        description: "Blizzard digital game distribution platform"
     
     # Utilities
     utilities:
@@ -56,14 +62,14 @@ chocolatey:
       - name: "nilesoft-shell"
         description: "Windows shell replacement"
         verify_exists: true
-      - name: "streamdeck"
+      - name: "elgato-wavelink"
+        description: "Elgato Wavelink"
+        verify_exists: true
+      - name: "elgato-streamdeck"
         description: "Elgato Stream Deck"
         verify_exists: true
-      - name: "elgato-camerahub"
+      - name: "elgato-camera-hub"
         description: "Elgato Camera Hub"
-        verify_exists: true
-      - name: "wavelink"
-        description: "Elgato Wavelink"
         verify_exists: true
 
 # Installation Categories (for selective installation)
@@ -74,9 +80,15 @@ install_categories:
   gaming: true
   utilities: true
   scoop_packages: true
+  windows_features: true
 
 # Error Handling
 error_handling:
   continue_on_package_failure: true
   package_failure_is_warning: true
-  feature_failure_is_warning: false 
+  feature_failure_is_warning: false
+
+# Reboot Management
+reboot:
+  auto_reboot: true  # Enable automatic reboots by default
+  reboot_timeout: 900  # 15 minutes timeout for safety 
