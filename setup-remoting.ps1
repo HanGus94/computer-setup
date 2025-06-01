@@ -38,7 +38,8 @@ if ($winVersion.Major -lt 10 -or ($winVersion.Major -eq 10 -and $winVersion.Buil
 Write-Host "✓ Windows version supported: $($winVersion.Major).$($winVersion.Minor) (Build $($winVersion.Build))" -ForegroundColor Green
 
 # Install OpenSSH Server if not present
-Write-Host "`nInstalling OpenSSH Server..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Installing OpenSSH Server..." -ForegroundColor Yellow
 $sshServerFeature = Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*'
 
 if ($sshServerFeature.State -ne "Installed") {
@@ -54,7 +55,8 @@ if ($sshServerFeature.State -ne "Installed") {
 }
 
 # Start and configure SSH service
-Write-Host "`nConfiguring SSH service..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Configuring SSH service..." -ForegroundColor Yellow
 try {
     Start-Service sshd -ErrorAction Stop
     Set-Service -Name sshd -StartupType 'Automatic'
@@ -65,7 +67,8 @@ try {
 }
 
 # Configure SSH daemon
-Write-Host "`nConfiguring SSH daemon..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Configuring SSH daemon..." -ForegroundColor Yellow
 $sshdConfigPath = "C:\ProgramData\ssh\sshd_config"
 
 # Backup original config
@@ -129,7 +132,8 @@ try {
 }
 
 # Configure Windows Firewall
-Write-Host "`nConfiguring Windows Firewall..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Configuring Windows Firewall..." -ForegroundColor Yellow
 try {
     # Remove existing SSH rules if any
     Get-NetFirewallRule -DisplayName "*ssh*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
@@ -152,7 +156,8 @@ try {
 }
 
 # Setup SSH keys directory for the user
-Write-Host "`nSetting up SSH keys directory..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Setting up SSH keys directory..." -ForegroundColor Yellow
 $userProfile = (Get-WmiObject -Class Win32_UserProfile | Where-Object { $_.LocalPath -like "*\$UserName" }).LocalPath
 if (-not $userProfile) {
     $userProfile = "C:\Users\$UserName"
@@ -182,7 +187,8 @@ try {
 # Generate SSH key pair for the user (optional)
 $keyPath = Join-Path $sshDir "id_rsa"
 if ($EnableKeyAuth -and -not (Test-Path $keyPath)) {
-    Write-Host "`nGenerating SSH key pair..." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Generating SSH key pair..." -ForegroundColor Yellow
     try {
         & ssh-keygen -t rsa -b 4096 -f $keyPath -N '""' -C "ansible-$UserName@$(hostname)"
         Write-Host "✓ SSH key pair generated: $keyPath" -ForegroundColor Green
@@ -193,7 +199,8 @@ if ($EnableKeyAuth -and -not (Test-Path $keyPath)) {
 }
 
 # Restart SSH service to apply configuration
-Write-Host "`nRestarting SSH service..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Restarting SSH service..." -ForegroundColor Yellow
 try {
     Restart-Service sshd -Force
     Write-Host "✓ SSH service restarted successfully" -ForegroundColor Green
@@ -203,7 +210,8 @@ try {
 }
 
 # Test SSH service
-Write-Host "`nTesting SSH service..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Testing SSH service..." -ForegroundColor Yellow
 $sshTest = Get-Service sshd
 if ($sshTest.Status -eq "Running") {
     Write-Host "✓ SSH service is running" -ForegroundColor Green
@@ -213,14 +221,16 @@ if ($sshTest.Status -eq "Running") {
 }
 
 # Display connection information
-Write-Host "`n" + "="*50 -ForegroundColor Cyan
+Write-Host ""
+Write-Host ("=" * 50) -ForegroundColor Cyan
 Write-Host "SSH SETUP COMPLETED SUCCESSFULLY!" -ForegroundColor Green
-Write-Host "="*50 -ForegroundColor Cyan
+Write-Host ("=" * 50) -ForegroundColor Cyan
 
 $computerName = $env:COMPUTERNAME
 $ipAddresses = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne "127.0.0.1" -and $_.PrefixOrigin -eq "Dhcp" -or $_.PrefixOrigin -eq "Manual" } | Select-Object -ExpandProperty IPAddress
 
-Write-Host "`nConnection Information:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Connection Information:" -ForegroundColor Yellow
 Write-Host "  Computer Name: $computerName" -ForegroundColor White
 Write-Host "  User Account: $UserName" -ForegroundColor White
 Write-Host "  SSH Port: 22" -ForegroundColor White
@@ -229,7 +239,8 @@ foreach ($ip in $ipAddresses) {
     Write-Host "    - $ip" -ForegroundColor Gray
 }
 
-Write-Host "`nAnsible Inventory Configuration:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Ansible Inventory Configuration:" -ForegroundColor Yellow
 Write-Host @"
 target-windows:
   ansible_host: $($ipAddresses[0])
@@ -239,17 +250,21 @@ target-windows:
   ansible_ssh_shell_type: powershell
 "@ -ForegroundColor Gray
 
-Write-Host "`nTest Connection:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Test Connection:" -ForegroundColor Yellow
 Write-Host "  ansible target-windows -i inventory/hosts.yml -m win_shell -a 'whoami'" -ForegroundColor Gray
 
 if ($EnableKeyAuth -and (Test-Path "$keyPath.pub")) {
-    Write-Host "`nSSH Public Key (for key-based auth):" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "SSH Public Key (for key-based auth):" -ForegroundColor Yellow
     Get-Content "$keyPath.pub" | Write-Host -ForegroundColor Gray
 }
 
-Write-Host "`nNext Steps:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Next Steps:" -ForegroundColor Yellow
 Write-Host "  1. Update your Ansible inventory with the connection details above" -ForegroundColor White
 Write-Host "  2. Test the connection with: ansible target-windows -m ping" -ForegroundColor White
 Write-Host "  3. Run your playbook: ansible-playbook -i inventory/hosts.yml playbooks/site.yml" -ForegroundColor White
 
-Write-Host "`n✅ SSH remoting is now ready for Ansible!" -ForegroundColor Green 
+Write-Host ""
+Write-Host "✅ SSH remoting is now ready for Ansible!" -ForegroundColor Green 
