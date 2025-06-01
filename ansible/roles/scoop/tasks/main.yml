@@ -53,7 +53,7 @@
         $installer = Invoke-RestMethod -Uri https://get.scoop.sh
         Write-Output "Installer downloaded successfully"
         Write-Output "Running Scoop installer in global mode..."
-        Invoke-Expression $installer
+        Invoke-Expression $installer -RunAsAdmin
         Write-Output "Scoop installation completed"
     } catch {
         Write-Output "Error during Scoop installation: $($_.Exception.Message)"
