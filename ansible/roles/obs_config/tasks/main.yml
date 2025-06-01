@@ -99,11 +99,42 @@
         recurse: yes
       register: obs_exe_locations
 
-    - name: "Create portable_mode.txt in each OBS installation"
-      win_file:
-        path: "{{ item.path | dirname }}\\portable_mode.txt"
-        state: touch
-      loop: "{{ obs_exe_locations.files }}"
+    - name: "Debug OBS executable locations"
+      debug:
+        msg: |
+          Found OBS executables:
+          {% for file in obs_exe_locations.files %}
+          - {{ file.path }}
+          - Directory: {{ file.path | dirname }}
+          {% endfor %}
+
+    - name: "Create portable_mode.txt in root of each OBS installation"
+      win_copy:
+        content: ""
+        dest: "{{ obs_config.target_base_directory }}\\{{ item }}\\portable_mode.txt"
+      loop:
+        - "Streaming"
+        - "Recording"
+        - "Testing"
+
+    - name: "Verify portable_mode.txt files were created"
+      win_find:
+        paths: 
+          - "{{ obs_config.target_base_directory }}\\Streaming"
+          - "{{ obs_config.target_base_directory }}\\Recording"
+          - "{{ obs_config.target_base_directory }}\\Testing"
+        patterns: "portable_mode.txt"
+        recurse: no
+      register: portable_mode_verification
+
+    - name: "Display portable mode verification"
+      debug:
+        msg: |
+          📝 Portable Mode Files Created:
+          {% for file in portable_mode_verification.files %}
+          - {{ file.path }}
+          {% endfor %}
+          Total portable_mode.txt files: {{ portable_mode_verification.files | length }}
 
     - name: "Clean up downloaded zip file"
       win_file:
@@ -118,6 +149,7 @@
           ==================================
           Version: {{ obs_version }}
           Installations Created: {{ obs_exe_locations.files | length }}
+          Portable Mode Files: {{ portable_mode_verification.files | length }}
           
           📁 Portable OBS Locations:
           {% for file in obs_exe_locations.files %}
