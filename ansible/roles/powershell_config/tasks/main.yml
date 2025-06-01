@@ -16,8 +16,8 @@
     path: "{{ powershell_documents_path.stdout | trim }}"
     state: directory
 
-- name: "Find PowerShell configuration files"
-  win_find:
+- name: "Find PowerShell configuration files on controller"
+  find:
     paths: "{{ powershell_config.profile_source }}"
     patterns: "*.ps1"
     recurse: no
@@ -27,13 +27,13 @@
 - name: "Copy PowerShell profile files"
   win_copy:
     src: "{{ item.path }}"
-    dest: "{{ powershell_documents_path.stdout | trim }}\\{{ item.filename }}"
+    dest: "{{ powershell_documents_path.stdout | trim }}\\{{ item.path | basename }}"
     backup: yes
   loop: "{{ powershell_files.files }}"
   register: profile_copy_result
 
-- name: "Find additional PowerShell configuration files"
-  win_find:
+- name: "Find additional PowerShell configuration files on controller"
+  find:
     paths: "{{ powershell_config.profile_source }}"
     patterns: "*"
     file_type: file
@@ -46,7 +46,7 @@
 - name: "Copy additional PowerShell configuration files"
   win_copy:
     src: "{{ item.path }}"
-    dest: "{{ powershell_documents_path.stdout | trim }}\\{{ item.filename }}"
+    dest: "{{ powershell_documents_path.stdout | trim }}\\{{ item.path | basename }}"
     backup: yes
   loop: "{{ additional_powershell_files.files }}"
   register: additional_copy_result
@@ -54,13 +54,19 @@
     - powershell_config.copy_all_files | default(true)
     - additional_powershell_files.files is defined
 
+- name: "Check if main PowerShell profile exists"
+  stat:
+    path: "{{ powershell_config.profile_source }}/Microsoft.PowerShell_profile.ps1"
+  register: main_profile_check
+  delegate_to: localhost
+
 - name: "Set PowerShell profile as main profile"
   win_copy:
-    src: "{{ powershell_config.profile_source }}\\Microsoft.PowerShell_profile.ps1"
+    src: "{{ powershell_config.profile_source }}/Microsoft.PowerShell_profile.ps1"
     dest: "{{ powershell_documents_path.stdout | trim }}\\Microsoft.PowerShell_profile.ps1"
     backup: yes
   register: main_profile_result
-  when: powershell_config.profile_source + "\\Microsoft.PowerShell_profile.ps1" is file
+  when: main_profile_check.stat.exists
 
 - name: "Display PowerShell configuration summary"
   debug:
