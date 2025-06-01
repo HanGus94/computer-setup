@@ -209,7 +209,7 @@
   loop:
     - "extras"
     - "versions"
-  changed_when: "'Added bucket' in item.stdout"
+  changed_when: "'Added bucket' in stdout"
   tags: [scoop, software]
 
 - name: "Report bucket addition failures"
