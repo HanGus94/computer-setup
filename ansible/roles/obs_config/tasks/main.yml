@@ -8,8 +8,8 @@
     path: "{{ obs_config.target_base_directory }}"
     state: directory
 
-- name: "Find OBS configuration directories"
-  win_find:
+- name: "Find OBS configuration directories on controller"
+  find:
     paths: "{{ obs_config.source_directory }}"
     file_type: directory
     recurse: no
@@ -20,7 +20,7 @@
 - name: "Copy OBS configuration directories"
   win_copy:
     src: "{{ item.path }}"
-    dest: "{{ obs_config.target_base_directory }}\{{ item.filename }}"
+    dest: "{{ obs_config.target_base_directory }}\\\{{ item.path | basename }}"
     backup: yes
   loop: "{{ obs_directories.files }}"
   register: obs_copy_result
@@ -28,8 +28,8 @@
     - obs_config.copy_configs | default(true)
     - obs_directories.files is defined
 
-- name: "Find OBS configuration files"
-  win_find:
+- name: "Find OBS configuration files on controller"
+  find:
     paths: "{{ obs_config.source_directory }}"
     file_type: file
     recurse: yes
@@ -40,7 +40,7 @@
 - name: "Copy individual OBS configuration files"
   win_copy:
     src: "{{ item.path }}"
-    dest: "{{ obs_config.target_base_directory }}\{{ item.filename }}"
+    dest: "{{ obs_config.target_base_directory }}\\\{{ item.path | basename }}"
     backup: yes
   loop: "{{ obs_files.files }}"
   register: obs_files_copy_result
