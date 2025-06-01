@@ -110,8 +110,8 @@ SyslogFacility AUTH
 LogLevel INFO
 
 # Windows-specific settings
-# Use PowerShell as default shell for Ansible
-Subsystem powershell c:/progra~1/powershell/7/pwsh.exe -sshs -NoLogo -NoProfile
+# Use Windows PowerShell 5.1 as default shell for Ansible (always available)
+Subsystem powershell C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -sshs -NoLogo -NoProfile
 
 # Allow specific users (add more as needed)
 AllowUsers $UserName
@@ -134,7 +134,7 @@ try {
     # Remove existing SSH rules if any
     Get-NetFirewallRule -DisplayName "*ssh*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
     
-    # Create new SSH rule
+    # Create new SSH rule for ALL network profiles
     New-NetFirewallRule -Name "OpenSSH-Server-In-TCP" `
                        -DisplayName "OpenSSH SSH Server (sshd)" `
                        -Enabled True `
@@ -142,9 +142,10 @@ try {
                        -Protocol TCP `
                        -Action Allow `
                        -LocalPort 22 `
+                       -Profile Domain,Private,Public `
                        -Program "C:\System32\OpenSSH\sshd.exe"
     
-    Write-Host "✓ Firewall rule created for SSH (port 22)" -ForegroundColor Green
+    Write-Host "✓ Firewall rule created for SSH (port 22) - all network profiles" -ForegroundColor Green
 } catch {
     Write-Warning "Failed to configure firewall rule: $($_.Exception.Message)"
     Write-Host "You may need to manually allow SSH through Windows Firewall" -ForegroundColor Yellow
