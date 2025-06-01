@@ -53,7 +53,7 @@
 
     - name: "Extract OBS download URL"
       set_fact:
-        obs_download_url: "{{ obs_release_info.json.assets | selectattr('name', 'match', '.*Windows.*\\.zip$') | map(attribute='browser_download_url') | first }}"
+        obs_download_url: "{{ obs_release_info.json.assets | selectattr('name', 'match', '.*-Windows\\.zip$') | map(attribute='browser_download_url') | first }}"
         obs_version: "{{ obs_release_info.json.tag_name }}"
 
     - name: "Display OBS version info"
@@ -135,6 +135,32 @@
           - {{ file.path }}
           {% endfor %}
           Total portable_mode.txt files: {{ portable_mode_verification.files | length }}
+
+    - name: "Get Desktop path"
+      win_shell: |
+        $desktopPath = [Environment]::GetFolderPath('Desktop')
+        return $desktopPath
+      register: desktop_path
+      changed_when: false
+
+    - name: "Create desktop shortcuts for each OBS installation"
+      win_shortcut:
+        src: "{{ item.path }}"
+        dest: "{{ desktop_path.stdout | trim }}\\OBS ({{ item.path | regex_replace('.*\\\\([^\\\\]+)\\\\.*', '\\1') }}).lnk"
+        description: "OBS Studio - {{ item.path | regex_replace('.*\\\\([^\\\\]+)\\\\.*', '\\1') }} Profile"
+        icon: "{{ item.path }},0"
+      loop: "{{ obs_exe_locations.files }}"
+      when: obs_exe_locations.files is defined and obs_exe_locations.files | length > 0
+      register: shortcut_creation
+
+    - name: "Display shortcut creation summary"
+      debug:
+        msg: |
+          🔗 Desktop Shortcuts Created:
+          {% for result in shortcut_creation.results %}
+          - {{ result.dest | basename | regex_replace('\\.lnk$', '') }}
+          {% endfor %}
+          Total shortcuts: {{ shortcut_creation.results | length }}
 
     - name: "Clean up downloaded zip file"
       win_file:
