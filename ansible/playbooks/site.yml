@@ -46,11 +46,9 @@
         - chocolatey
     
     # Scoop Package Installation
-    - block:
-        - name: "Install Scoop and Scoop-only Packages"
-          include_role:
-            name: scoop
-      become: no  # Scoop must run as regular user, not admin
+    - name: "Install Scoop and Scoop-only Packages (Admin Mode)"
+      include_role:
+        name: scoop
       tags:
         - software
         - scoop
