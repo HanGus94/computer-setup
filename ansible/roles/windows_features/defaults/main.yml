@@ -1,0 +1,43 @@
+---
+# Windows Features Role Default Variables
+# =======================================
+
+# Windows Features Configuration
+windows_features:
+  # Hyper-V Virtualization
+  hyperv:
+    enabled: true
+    features:
+      - "Microsoft-Hyper-V-All"
+      - "Microsoft-Hyper-V"
+      - "Microsoft-Hyper-V-Tools-All"
+      - "Microsoft-Hyper-V-Management-PowerShell"
+  
+  # Windows Sandbox
+  windows_sandbox:
+    enabled: true
+    features:
+      - "Containers-DisposableClientVM"
+  
+  # Windows Subsystem for Linux 2
+  wsl2:
+    enabled: true
+    features:
+      - "Microsoft-Windows-Subsystem-Linux"
+      - "VirtualMachinePlatform"
+
+# Installation Categories (for selective installation)
+install_categories:
+  essential: true
+  development: true
+  media: true
+  gaming: true
+  utilities: true
+  scoop_packages: true
+  windows_features: true
+
+# Error Handling
+error_handling:
+  continue_on_package_failure: true
+  package_failure_is_warning: true
+  feature_failure_is_warning: false 

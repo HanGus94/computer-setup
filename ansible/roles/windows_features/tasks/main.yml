@@ -10,10 +10,12 @@
     return $virtualizationSupported
   register: virtualization_check
   changed_when: false
+  when: install_categories.windows_features | default(true)
 
 - name: "Display virtualization support status"
   debug:
     msg: "Hardware virtualization support: {{ 'Enabled' if virtualization_check.stdout | trim | bool else 'Disabled or Unknown' }}"
+  when: install_categories.windows_features | default(true)
 
 - name: "Enable Hyper-V features"
   ansible.windows.win_optional_feature:
@@ -22,6 +24,7 @@
   register: hyperv_result
   loop: "{{ windows_features.hyperv.features }}"
   when: 
+    - install_categories.windows_features | default(true)
     - windows_features.hyperv.enabled | default(true)
     - virtualization_check.stdout | trim | bool
   failed_when: false
@@ -31,6 +34,7 @@
     msg: "Failed to enable Hyper-V feature: {{ item.item }}"
   loop: "{{ hyperv_result.results }}"
   when: 
+    - install_categories.windows_features | default(true)
     - hyperv_result is defined
     - item.failed | default(false)
     - error_handling.feature_failure_is_warning | default(false)
@@ -42,6 +46,7 @@
   register: sandbox_result
   loop: "{{ windows_features.windows_sandbox.features }}"
   when: 
+    - install_categories.windows_features | default(true)
     - windows_features.windows_sandbox.enabled | default(true)
     - virtualization_check.stdout | trim | bool
   failed_when: false
@@ -51,6 +56,7 @@
     msg: "Failed to enable Windows Sandbox feature: {{ item.item }}"
   loop: "{{ sandbox_result.results }}"
   when: 
+    - install_categories.windows_features | default(true)
     - sandbox_result is defined
     - item.failed | default(false)
     - error_handling.feature_failure_is_warning | default(false)
@@ -61,7 +67,9 @@
     state: present
   register: wsl2_result
   loop: "{{ windows_features.wsl2.features }}"
-  when: windows_features.wsl2.enabled | default(true)
+  when: 
+    - install_categories.windows_features | default(true)
+    - windows_features.wsl2.enabled | default(true)
   failed_when: false
 
 - name: "Report WSL2 feature failures"
@@ -69,6 +77,7 @@
     msg: "Failed to enable WSL2 feature: {{ item.item }}"
   loop: "{{ wsl2_result.results }}"
   when: 
+    - install_categories.windows_features | default(true)
     - wsl2_result is defined
     - item.failed | default(false)
     - error_handling.feature_failure_is_warning | default(false)
@@ -81,6 +90,7 @@
         (sandbox_result.results | default([]) | selectattr('reboot_required', 'defined') | selectattr('reboot_required', 'equalto', true) | list | length > 0) or
         (wsl2_result.results | default([]) | selectattr('reboot_required', 'defined') | selectattr('reboot_required', 'equalto', true) | list | length > 0)
       }}
+  when: install_categories.windows_features | default(true)
 
 - name: "Create features summary"
   set_fact:
@@ -88,6 +98,7 @@
       hyperv_enabled: "{{ hyperv_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ windows_features.hyperv.features | length if windows_features.hyperv.enabled else 0 }}"
       sandbox_enabled: "{{ sandbox_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ windows_features.windows_sandbox.features | length if windows_features.windows_sandbox.enabled else 0 }}"
       wsl2_enabled: "{{ wsl2_result.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ windows_features.wsl2.features | length if windows_features.wsl2.enabled else 0 }}"
+  when: install_categories.windows_features | default(true)
 
 - name: "Display Windows features summary"
   debug:
@@ -102,4 +113,5 @@
       ⚠️  Some features require a system reboot to complete installation
       {% endif %}
       
-      ✅ Windows features configuration completed! 
+      ✅ Windows features configuration completed!
+  when: install_categories.windows_features | default(true) 
