@@ -11,26 +11,38 @@
   register: firefox_profiles_path
   changed_when: false
 
-- name: "Find existing Firefox profiles"
+- name: "Find Firefox profiles ending with -release"
+  win_find:
+    paths: "{{ firefox_profiles_path.stdout | trim }}"
+    file_type: directory
+    patterns: "*-release"
+  register: firefox_release_profiles
+  failed_when: false
+
+- name: "Find other Firefox default profiles (fallback)"
   win_find:
     paths: "{{ firefox_profiles_path.stdout | trim }}"
     file_type: directory
     patterns: "*.default*"
-  register: existing_firefox_profiles
+  register: firefox_default_profiles
   failed_when: false
+  when: firefox_release_profiles.files | length == 0
 
-- name: "Create default Firefox profile directory if none exists"
+- name: "Create default-release Firefox profile directory if none exists"
   win_file:
     path: "{{ firefox_profiles_path.stdout | trim }}\\default-release"
     state: directory
-  when: existing_firefox_profiles.files | length == 0
+  when: 
+    - firefox_release_profiles.files | length == 0
+    - (firefox_default_profiles.files | default([]) | length == 0)
 
-- name: "Set target Firefox profile directory"
+- name: "Set target Firefox profile directory (prioritize -release profiles)"
   set_fact:
     firefox_target_profile: >-
       {{
-        existing_firefox_profiles.files[0].path if existing_firefox_profiles.files | length > 0
-        else (firefox_profiles_path.stdout | trim) + '\\default-release'
+        firefox_release_profiles.files[0].path if firefox_release_profiles.files | length > 0
+        else (firefox_default_profiles.files[0].path if (firefox_default_profiles.files | default([]) | length > 0)
+        else (firefox_profiles_path.stdout | trim) + '\\default-release')
       }}
 
 - name: "Create chrome directory for userChrome.css"
@@ -77,6 +89,7 @@
       🦊 Firefox Configuration Summary:
       =================================
       Target Profile Directory: {{ firefox_target_profile }}
+      Profile Type: {{ 'Release Profile (-release)' if firefox_target_profile.endswith('-release') else 'Default/Other Profile' }}
       Chrome Directory Created: {{ firefox_target_profile }}\\chrome
       userChrome.css Copied: {{ userchrome_copy_result.results | length if userchrome_copy_result is defined else 0 }}
       Other Files Copied: {{ other_files_copy_result.results | length if other_files_copy_result is defined else 0 }}
