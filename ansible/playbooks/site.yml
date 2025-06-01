@@ -57,9 +57,27 @@
     - name: "Enable Windows Features"
       include_role:
         name: windows_features
+      register: windows_features_result
       tags:
         - features
         - windows_features
+
+    # Reboot after Windows Features (if any were changed)
+    - name: "Reboot after Windows Features installation"
+      win_reboot:
+        reboot_timeout: 900  # 15 minutes
+        connect_timeout: 60  # 1 minute to start responding
+        msg: "Rebooting to complete Windows Features installation"
+        pre_reboot_delay: 10  # Wait 10 seconds before rebooting
+        post_reboot_delay: 30  # Wait 30 seconds after reboot before testing connection
+        test_command: "whoami"  # Simple command to test if system is ready
+      when: 
+        - windows_features_result is defined
+        - windows_features_result is changed
+      tags:
+        - features
+        - windows_features
+        - reboot
     
     # PowerShell Configuration
     - name: "Deploy PowerShell Configuration"
@@ -97,13 +115,12 @@
           Host: {{ inventory_hostname }}
           
           Next Steps:
-          - Reboot the system if Windows features were installed
           - Launch applications to verify installation
           - Configure application-specific settings as needed
           =======================================================
       tags: always
 
-    - name: "Check if reboot is required"
+    - name: "Check if final reboot is required"
       win_shell: |
         # Check if reboot is pending
         $rebootRequired = $false
@@ -124,24 +141,26 @@
         }
         
         return $rebootRequired
-      register: reboot_required
+      register: final_reboot_required
       changed_when: false
       tags: always
 
-    - name: "Notify about pending reboot"
+    - name: "Final reboot notification"
       debug:
         msg: |
-          ⚠️  REBOOT REQUIRED ⚠️
-          Windows features have been installed that require a system restart.
-          Please reboot your system to complete the setup process.
-      when: reboot_required.stdout | trim | bool
+          ✅ Setup completed successfully!
+          {{ 'A final reboot is recommended but not required.' if final_reboot_required.stdout | trim | bool else 'No reboot required.' }}
       tags: always
 
-    - name: "Automatic reboot (if enabled)"
+    - name: "Optional final reboot"
       win_reboot:
-        reboot_timeout: "{{ reboot.reboot_timeout }}"
-        msg: "Rebooting to complete Windows computer setup"
+        reboot_timeout: 600  # 10 minutes
+        connect_timeout: 60  # 1 minute to start responding  
+        msg: "Final reboot to complete all system changes"
+        pre_reboot_delay: 10
+        post_reboot_delay: 30
+        test_command: "whoami"
       when: 
-        - reboot_required.stdout | trim | bool
-        - reboot.auto_reboot | default(false) | bool
+        - final_reboot_required.stdout | trim | bool
+        - reboot.auto_reboot | default(true) | bool  # Changed default to true
       tags: always 

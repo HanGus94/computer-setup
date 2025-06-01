@@ -7,45 +7,191 @@
   win_stat:
     path: "{{ ansible_env.USERPROFILE }}\\scoop\\shims\\scoop.exe"
   register: scoop_installed
+  tags: [scoop, software]
+
+- name: "Check current PowerShell execution policy"
+  win_shell: |
+    $currentUser = Get-ExecutionPolicy -Scope CurrentUser
+    $process = Get-ExecutionPolicy -Scope Process
+    Write-Output "CurrentUser: $currentUser"
+    Write-Output "Process: $process"
+  register: execution_policies
+  tags: [scoop, software]
+
+- name: "Display execution policies"
+  debug:
+    msg: "{{ execution_policies.stdout_lines }}"
+  tags: [scoop, software]
 
 - name: "Install Scoop package manager"
   win_shell: |
     # Set execution policy for current user if needed
     $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
-    if ($currentPolicy -eq "Restricted") {
+    Write-Output "Current execution policy: $currentPolicy"
+    
+    if ($currentPolicy -eq "Restricted" -or $currentPolicy -eq "Undefined") {
+        Write-Output "Setting execution policy to RemoteSigned for CurrentUser"
         Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        $newPolicy = Get-ExecutionPolicy -Scope CurrentUser
+        Write-Output "New execution policy: $newPolicy"
     }
     
-    # Download and install Scoop
+    # Also set for current process to be safe
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+    
+    # Set security protocol
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+    
+    Write-Output "Downloading Scoop installer..."
+    try {
+        $installer = Invoke-RestMethod -Uri https://get.scoop.sh
+        Write-Output "Installer downloaded successfully"
+        Write-Output "Running Scoop installer..."
+        Invoke-Expression $installer
+        Write-Output "Scoop installation completed"
+    } catch {
+        Write-Output "Error during Scoop installation: $($_.Exception.Message)"
+        throw $_
+    }
+    
+    # Wait a moment for installation to settle
+    Start-Sleep -Seconds 5
+    
+    # Verify installation
+    $scoopDir = "$env:USERPROFILE\scoop"
+    if (Test-Path $scoopDir) {
+        Write-Output "Scoop directory created successfully at: $scoopDir"
+        $shimsDir = "$scoopDir\shims"
+        if (Test-Path $shimsDir) {
+            Write-Output "Shims directory found: $shimsDir"
+        } else {
+            Write-Output "Warning: Shims directory not found"
+        }
+    } else {
+        throw "Scoop directory not created at $scoopDir"
+    }
   when: not scoop_installed.stat.exists
   register: scoop_install_result
+  tags: [scoop, software]
+
+- name: "Display Scoop installation result"
+  debug:
+    msg: "{{ scoop_install_result.stdout_lines }}"
+  when: scoop_install_result is changed
+  tags: [scoop, software]
 
 - name: "Refresh environment variables after Scoop installation"
   win_shell: |
     # Refresh PATH to include Scoop
-    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "User") + ";" + $env:PATH
+    Write-Output "Refreshing environment variables..."
+    
+    # Get current user PATH
+    $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    Write-Output "Current user PATH: $userPath"
+    
+    # Add Scoop paths if not present
+    $scoopShims = "$env:USERPROFILE\scoop\shims"
+    $scoopApps = "$env:USERPROFILE\scoop\apps\scoop\current\bin"
+    
+    if ($userPath -notlike "*$scoopShims*") {
+        $newUserPath = "$scoopShims;$userPath"
+        [System.Environment]::SetEnvironmentVariable("PATH", $newUserPath, "User")
+        Write-Output "Added Scoop shims to user PATH"
+    }
+    
+    # Update current session PATH
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "User") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
+    
+    # Also try refreshenv if available
+    try {
+        refreshenv 2>$null
+        Write-Output "Executed refreshenv"
+    } catch {
+        Write-Output "refreshenv not available"
+    }
+    
+    Write-Output "Environment refresh completed"
+    Write-Output "Current session PATH: $env:PATH"
   when: scoop_install_result is changed
+  tags: [scoop, software]
 
 - name: "Verify Scoop installation"
   win_shell: |
-    $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
-    if (Test-Path $scoopPath) {
-        & $scoopPath --version
-    } else {
-        throw "Scoop not found after installation"
+    # Try multiple possible paths for Scoop
+    $scoopPaths = @(
+        "$env:USERPROFILE\scoop\shims\scoop.exe",
+        "$env:USERPROFILE\scoop\apps\scoop\current\bin\scoop.ps1",
+        "$env:USERPROFILE\scoop\shims\scoop.ps1"
+    )
+    
+    $scoopFound = $false
+    $scoopCommand = $null
+    
+    # First try to find scoop command directly
+    try {
+        $scoopCmd = Get-Command scoop -ErrorAction SilentlyContinue
+        if ($scoopCmd) {
+            $version = scoop --version 2>$null
+            if ($version) {
+                Write-Output "Scoop found via command: $version"
+                $scoopFound = $true
+            }
+        }
+    } catch {}
+    
+    # If not found, try specific paths
+    if (-not $scoopFound) {
+        foreach ($path in $scoopPaths) {
+            if (Test-Path $path) {
+                Write-Output "Found Scoop at: $path"
+                try {
+                    if ($path -like "*.ps1") {
+                        $version = & powershell -File $path --version 2>$null
+                    } else {
+                        $version = & $path --version 2>$null
+                    }
+                    if ($version) {
+                        Write-Output "Scoop version: $version"
+                        $scoopFound = $true
+                        $scoopCommand = $path
+                        break
+                    }
+                } catch {
+                    Write-Output "Failed to execute Scoop at $path : $($_.Exception.Message)"
+                }
+            }
+        }
+    }
+    
+    if (-not $scoopFound) {
+        Write-Output "Scoop paths checked:"
+        foreach ($path in $scoopPaths) {
+            $exists = Test-Path $path
+            Write-Output "  $path : $exists"
+        }
+        throw "Scoop installation verification failed - executable not found"
     }
   register: scoop_version
   changed_when: false
+  tags: [scoop, software]
 
 - name: "Display Scoop version"
   debug:
     msg: "Scoop version: {{ scoop_version.stdout | trim }}"
+  tags: [scoop, software]
 
 - name: "Add essential Scoop buckets"
   win_shell: |
-    $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
+    # Try to find scoop command
+    $scoopCmd = Get-Command scoop -ErrorAction SilentlyContinue
+    if ($scoopCmd) {
+        $scoopPath = "scoop"
+    } else {
+        $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
+        if (-not (Test-Path $scoopPath)) {
+            $scoopPath = "$env:USERPROFILE\scoop\apps\scoop\current\bin\scoop.ps1"
+        }
+    }
     
     # Check if bucket already exists
     $existingBuckets = & $scoopPath bucket list 2>$null | Out-String
@@ -69,6 +215,7 @@
     - "extras"
     - "versions"
   changed_when: "'Added bucket' in item.stdout"
+  tags: [scoop, software]
 
 - name: "Report bucket addition failures"
   debug:
@@ -77,10 +224,20 @@
   when: 
     - item.failed | default(false)
     - error_handling.package_failure_is_warning | default(true)
+  tags: [scoop, software]
 
 - name: "Install Scoop packages"
   win_shell: |
-    $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
+    # Try to find scoop command
+    $scoopCmd = Get-Command scoop -ErrorAction SilentlyContinue
+    if ($scoopCmd) {
+        $scoopPath = "scoop"
+    } else {
+        $scoopPath = "$env:USERPROFILE\scoop\shims\scoop.exe"
+        if (-not (Test-Path $scoopPath)) {
+            $scoopPath = "$env:USERPROFILE\scoop\apps\scoop\current\bin\scoop.ps1"
+        }
+    }
     
     # Check if package is already installed
     $installedPackages = & $scoopPath list 2>$null | Out-String
@@ -104,6 +261,7 @@
   loop: "{{ scoop.packages }}"
   when: install_categories.scoop_packages | default(true)
   changed_when: "'Successfully installed' in item.stdout"
+  tags: [scoop, software, packages]
 
 - name: "Report Scoop package failures"
   debug:
@@ -113,12 +271,14 @@
     - scoop_install_results is defined
     - item.failed | default(false)
     - error_handling.package_failure_is_warning | default(true)
+  tags: [scoop, software, packages]
 
 - name: "Create Scoop installation summary"
   set_fact:
     scoop_summary:
       packages_installed: "{{ scoop_install_results.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ scoop.packages | length }}"
       buckets_added: "{{ bucket_results.results | default([]) | selectattr('failed', 'undefined') | list | length }}/2"
+  tags: [scoop, software]
 
 - name: "Display Scoop installation summary"
   debug:
@@ -129,4 +289,5 @@
       Buckets Added: {{ scoop_summary.buckets_added }}
       Packages Installed: {{ scoop_summary.packages_installed }}
       
-      ✅ Scoop package installation completed! 
+      ✅ Scoop package installation completed!
+  tags: [scoop, software] 

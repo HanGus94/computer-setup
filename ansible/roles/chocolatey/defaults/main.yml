@@ -15,12 +15,10 @@ chocolatey:
     
     # Development Tools
     development:
-      - name: "cursor"
+      - name: "cursoride"
         description: "AI-powered code editor"
       - name: "git"
         description: "Version control system"
-      - name: "microsoft-windows-terminal"
-        description: "Modern terminal application"
       - name: "docker-desktop"
         description: "Docker containerization platform"
     
@@ -28,8 +26,6 @@ chocolatey:
     media:
       - name: "vlc"
         description: "Universal media player"
-      - name: "spotify"
-        description: "Music streaming service"
     
     # Gaming Platforms
     gaming:
@@ -39,8 +35,6 @@ chocolatey:
         description: "Epic Games digital distribution platform"
       - name: "goggalaxy"
         description: "GOG digital game distribution platform"
-      - name: "battle.net"
-        description: "Blizzard digital game distribution platform"
     
     # Utilities
     utilities:
@@ -62,13 +56,13 @@ chocolatey:
       - name: "nilesoft-shell"
         description: "Windows shell replacement"
         verify_exists: true
-      - name: "elgato-wavelink"
+      - name: "wavelink"
         description: "Elgato Wavelink"
         verify_exists: true
-      - name: "elgato-streamdeck"
+      - name: "streamdeck"
         description: "Elgato Stream Deck"
         verify_exists: true
-      - name: "elgato-camera-hub"
+      - name: "elgato-camerahub"
         description: "Elgato Camera Hub"
         verify_exists: true
 

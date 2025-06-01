@@ -1,0 +1,29 @@
+---
+# Scoop Role Default Variables
+# ============================
+
+# Scoop Configuration (for packages only available in Scoop)
+scoop:
+  install_scoop: true
+  packages:
+    - name: "fzf"
+      description: "Fuzzy file finder"
+    - name: "psfzf"
+      description: "PowerShell wrapper for fzf"
+    - name: "spotify-player"
+      description: "Spotify terminal player"
+
+# Installation Categories (for selective installation)
+install_categories:
+  essential: true
+  development: true
+  media: true
+  gaming: true
+  utilities: true
+  scoop_packages: true
+
+# Error Handling
+error_handling:
+  continue_on_package_failure: true
+  package_failure_is_warning: true
+  feature_failure_is_warning: false 
