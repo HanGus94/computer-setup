@@ -50,11 +50,7 @@
     
     Write-Output "Downloading Scoop installer..."
     try {
-        $ScriptLocation = "$env:TEMP\scoop-installer.ps1"
-        $installer = Invoke-RestMethod -Uri https://get.scoop.sh -OutFile $ScriptLocation
-        Write-Output "Installer downloaded successfully"
-        Write-Output "Running Scoop installer in global mode..."
-        Invoke-Expression $ScriptLocation -RunAsAdmin
+        iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
         Write-Output "Scoop installation completed"
     } catch {
         Write-Output "Error during Scoop installation: $($_.Exception.Message)"
