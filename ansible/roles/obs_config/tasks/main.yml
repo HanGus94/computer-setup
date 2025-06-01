@@ -8,99 +8,141 @@
     path: "{{ obs_config.target_base_directory }}"
     state: directory
 
-- name: "Create OBS installation directories"
-  win_file:
-    path: "{{ obs_config.target_base_directory }}\\{{ item }}"
-    state: directory
+- name: "Check if OBS installations already exist"
+  win_find:
+    paths: "{{ obs_config.target_base_directory }}\\{{ item }}"
+    patterns: "portable_mode.txt"
+    recurse: yes
+  register: existing_obs_check
   loop:
     - "Streaming"
     - "Recording" 
     - "Testing"
+  failed_when: false
 
-- name: "Get latest OBS Studio release info from GitHub"
-  uri:
-    url: "https://api.github.com/repos/obsproject/obs-studio/releases/latest"
-    method: GET
-    return_content: yes
-  register: obs_release_info
-  delegate_to: localhost
-
-- name: "Extract OBS download URL"
+- name: "Set OBS installation status"
   set_fact:
-    obs_download_url: "{{ obs_release_info.json.assets | selectattr('name', 'match', '.*Windows.*\\.zip$') | map(attribute='browser_download_url') | first }}"
-    obs_version: "{{ obs_release_info.json.tag_name }}"
+    obs_already_installed: "{{ existing_obs_check.results | selectattr('files', 'defined') | selectattr('files', '!=', []) | list | length == 3 }}"
 
-- name: "Display OBS version info"
+- name: "Display OBS installation status"
   debug:
     msg: |
-      📦 OBS Studio Download Info:
-      ===========================
-      Version: {{ obs_version }}
-      Download URL: {{ obs_download_url }}
+      🎥 OBS Installation Status Check:
+      ================================
+      {{ 'All OBS installations found - skipping download/deployment' if obs_already_installed else 'OBS installations not found - proceeding with download/deployment' }}
+      Existing installations: {{ existing_obs_check.results | selectattr('files', 'defined') | selectattr('files', '!=', []) | list | length }}/3
 
-- name: "Download OBS Studio portable"
-  win_get_url:
-    url: "{{ obs_download_url }}"
-    dest: "{{ obs_config.target_base_directory }}\\obs-studio-{{ obs_version }}.zip"
-    timeout: 300
-  register: obs_download
+- name: "OBS Download and Installation Block"
+  block:
+    - name: "Create OBS installation directories"
+      win_file:
+        path: "{{ obs_config.target_base_directory }}\\{{ item }}"
+        state: directory
+      loop:
+        - "Streaming"
+        - "Recording" 
+        - "Testing"
 
-- name: "Extract OBS to Streaming directory"
-  win_unzip:
-    src: "{{ obs_download.dest }}"
-    dest: "{{ obs_config.target_base_directory }}\\Streaming"
-    delete_archive: no
+    - name: "Get latest OBS Studio release info from GitHub"
+      uri:
+        url: "https://api.github.com/repos/obsproject/obs-studio/releases/latest"
+        method: GET
+        return_content: yes
+      register: obs_release_info
+      delegate_to: localhost
 
-- name: "Extract OBS to Recording directory"
-  win_unzip:
-    src: "{{ obs_download.dest }}"
-    dest: "{{ obs_config.target_base_directory }}\\Recording"
-    delete_archive: no
+    - name: "Extract OBS download URL"
+      set_fact:
+        obs_download_url: "{{ obs_release_info.json.assets | selectattr('name', 'match', '.*Windows.*\\.zip$') | map(attribute='browser_download_url') | first }}"
+        obs_version: "{{ obs_release_info.json.tag_name }}"
 
-- name: "Extract OBS to Testing directory"
-  win_unzip:
-    src: "{{ obs_download.dest }}"
-    dest: "{{ obs_config.target_base_directory }}\\Testing"
-    delete_archive: no
+    - name: "Display OBS version info"
+      debug:
+        msg: |
+          📦 OBS Studio Download Info:
+          ===========================
+          Version: {{ obs_version }}
+          Download URL: {{ obs_download_url }}
 
-- name: "Find OBS executable directories"
-  win_find:
-    paths: 
-      - "{{ obs_config.target_base_directory }}\\Streaming"
-      - "{{ obs_config.target_base_directory }}\\Recording"
-      - "{{ obs_config.target_base_directory }}\\Testing"
-    patterns: "obs64.exe"
-    recurse: yes
-  register: obs_exe_locations
+    - name: "Download OBS Studio portable"
+      win_get_url:
+        url: "{{ obs_download_url }}"
+        dest: "{{ obs_config.target_base_directory }}\\obs-studio-{{ obs_version }}.zip"
+        timeout: 300
+      register: obs_download
 
-- name: "Create portable_mode.txt in each OBS installation"
-  win_file:
-    path: "{{ item.path | dirname }}\\portable_mode.txt"
-    state: touch
-  loop: "{{ obs_exe_locations.files }}"
+    - name: "Extract OBS to Streaming directory"
+      win_unzip:
+        src: "{{ obs_download.dest }}"
+        dest: "{{ obs_config.target_base_directory }}\\Streaming"
+        delete_archive: no
 
-- name: "Clean up downloaded zip file"
-  win_file:
-    path: "{{ obs_download.dest }}"
-    state: absent
-  when: obs_config.cleanup_downloads | default(true)
+    - name: "Extract OBS to Recording directory"
+      win_unzip:
+        src: "{{ obs_download.dest }}"
+        dest: "{{ obs_config.target_base_directory }}\\Recording"
+        delete_archive: no
 
-- name: "Display OBS installation summary"
+    - name: "Extract OBS to Testing directory"
+      win_unzip:
+        src: "{{ obs_download.dest }}"
+        dest: "{{ obs_config.target_base_directory }}\\Testing"
+        delete_archive: no
+
+    - name: "Find OBS executable directories"
+      win_find:
+        paths: 
+          - "{{ obs_config.target_base_directory }}\\Streaming"
+          - "{{ obs_config.target_base_directory }}\\Recording"
+          - "{{ obs_config.target_base_directory }}\\Testing"
+        patterns: "obs64.exe"
+        recurse: yes
+      register: obs_exe_locations
+
+    - name: "Create portable_mode.txt in each OBS installation"
+      win_file:
+        path: "{{ item.path | dirname }}\\portable_mode.txt"
+        state: touch
+      loop: "{{ obs_exe_locations.files }}"
+
+    - name: "Clean up downloaded zip file"
+      win_file:
+        path: "{{ obs_download.dest }}"
+        state: absent
+      when: obs_config.cleanup_downloads | default(true)
+
+    - name: "Display OBS installation summary"
+      debug:
+        msg: |
+          🎥 OBS Studio Installation Summary:
+          ==================================
+          Version: {{ obs_version }}
+          Installations Created: {{ obs_exe_locations.files | length }}
+          
+          📁 Portable OBS Locations:
+          {% for file in obs_exe_locations.files %}
+          - {{ file.path | dirname | replace(obs_config.target_base_directory + '\\', '') }}
+          {% endfor %}
+          
+          ✅ OBS Studio portable installations completed!
+          
+          📝 Usage:
+          - Each installation is completely portable
+          - Launch obs64.exe from any directory to use that configuration
+          - Streaming/Recording/Testing have separate settings and profiles
+
+  when: not obs_already_installed
+
+- name: "Display OBS skip summary"
   debug:
     msg: |
-      🎥 OBS Studio Installation Summary:
-      ==================================
-      Version: {{ obs_version }}
-      Installations Created: {{ obs_exe_locations.files | length }}
+      🎥 OBS Studio Installation (Skipped):
+      ====================================
+      ✅ OBS installations already exist - no action needed!
       
-      📁 Portable OBS Locations:
-      {% for file in obs_exe_locations.files %}
-      - {{ file.path | dirname | replace(obs_config.target_base_directory + '\\', '') }}
-      {% endfor %}
+      📁 Existing OBS Locations:
+      - C:/Tools/Streaming
+      - C:/Tools/Recording  
+      - C:/Tools/Testing
       
-      ✅ OBS Studio portable installations completed!
-      
-      📝 Usage:
-      - Each installation is completely portable
-      - Launch obs64.exe from any directory to use that configuration
-      - Streaming/Recording/Testing have separate settings and profiles 
+      📝 All installations are portable and ready to use 
