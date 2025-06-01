@@ -1,7 +1,7 @@
 ---
-# Scoop Role - Main Tasks (Admin/Global Installation)
+# Scoop Role - Main Tasks (Using Ansible Collections)
 # ===================================================
-# Installs Scoop package manager globally for all users
+# Uses community.windows collection for proper Scoop management
 
 - name: "Check if Scoop is installed globally"
   win_stat:
@@ -176,80 +176,30 @@
   tags: [scoop, software]
 
 - name: "Add essential Scoop buckets"
-  win_shell: scoop bucket add {{ item }}
-  register: bucket_results
-  failed_when: false
+  community.windows.win_scoop_bucket:
+    name: "{{ item }}"
+    state: present
   loop:
     - "extras"
     - "versions"
-  changed_when: 
-    - bucket_results.rc == 0
-    - "'already exists' not in bucket_results.stdout"
   tags: [scoop, software]
 
 - name: "Install Scoop packages globally"
-  win_shell: |
-    # Try to find scoop command
-    $scoopCmd = Get-Command scoop -ErrorAction SilentlyContinue
-    if ($scoopCmd) {
-        $scoopPath = "scoop"
-    } else {
-        $scoopPath = "C:\ProgramData\scoop\shims\scoop.exe"
-        if (-not (Test-Path $scoopPath)) {
-            $scoopPath = "C:\ProgramData\scoop\apps\scoop\current\bin\scoop.ps1"
-        }
-    }
-    
-    # Check if package is already installed globally
-    $installedPackages = & $scoopPath list 2>$null | Out-String
-    if ($installedPackages -match "{{ item.name }}") {
-        Write-Output "Package {{ item.name }} already installed"
-        exit 0
-    }
-    
-    # Install the package globally
-    Write-Output "Installing {{ item.name }} globally"
-    $result = & $scoopPath install -g {{ item.name }} 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Output "Successfully installed {{ item.name }} globally"
-        exit 0
-    } else {
-        Write-Output "Failed to install {{ item.name }}: $result"
-        exit 1
-    }
-  register: scoop_install_results
-  failed_when: false
-  loop: "{{ scoop.packages }}"
+  community.windows.win_scoop:
+    name: "{{ scoop.packages | map(attribute='name') | list }}"
+    state: present
+    global: true
   when: install_categories.scoop_packages | default(true)
-  changed_when: "'Successfully installed' in item.stdout"
   tags: [scoop, software, packages]
-
-- name: "Report Scoop package failures"
-  debug:
-    msg: "Failed to install Scoop package: {{ item.item.name }} - {{ item.item.description }}"
-  loop: "{{ scoop_install_results.results }}"
-  when: 
-    - scoop_install_results is defined
-    - item.failed | default(false)
-    - error_handling.package_failure_is_warning | default(true)
-  tags: [scoop, software, packages]
-
-- name: "Create Scoop installation summary"
-  set_fact:
-    scoop_summary:
-      packages_installed: "{{ scoop_install_results.results | default([]) | selectattr('failed', 'undefined') | list | length }}/{{ scoop.packages | length }}"
-      buckets_added: "{{ bucket_results.results | default([]) | selectattr('failed', 'undefined') | list | length }}/2"
-  tags: [scoop, software]
 
 - name: "Display Scoop installation summary"
   debug:
     msg: |
-      📦 Scoop Installation Summary (Global):
-      =======================================
-      Scoop Version: {{ scoop_version.stdout | trim }}
-      Installation Path: C:\ProgramData\scoop
-      Buckets Added: {{ scoop_summary.buckets_added }}
-      Packages Installed: {{ scoop_summary.packages_installed }}
+      📦 Scoop Installation Summary:
+      =============================
+      Buckets: extras, versions
+      Packages: {{ scoop.packages | map(attribute='name') | join(', ') }}
+      Installation: Global (system-wide)
       
-      ✅ Scoop global package installation completed!
+      ✅ Scoop package installation completed!
   tags: [scoop, software] 
