@@ -15,7 +15,7 @@ chocolatey:
     
     # Development Tools
     development:
-      - name: "cursor"
+      - name: "cursoride"
         description: "AI-powered code editor"
       - name: "git"
         description: "Version control system"
