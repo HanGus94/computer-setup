@@ -1,236 +1,210 @@
-# Computer Setup Automation
+# Windows Computer Setup with Ansible
 
-This repository contains PowerShell scripts to automate the setup of a new Windows computer with development tools, configurations, and Windows features.
+Automated Windows computer setup using Ansible for software installation, configuration deployment, and system feature management. This project provides a comprehensive solution for setting up Windows workstations with Chocolatey packages, Scoop packages, Windows features, and custom configurations.
 
-## Features
+## 🚀 Features
 
-### 🔧 System Setup
-- **Windows Features**: Enable Hyper-V, Windows Sandbox, and WSL2 with all management tools
-- **System Dependencies**: Install Visual C++ redistributables and runtime libraries
-- **Applications**: Install essential applications via Windows Package Manager (Winget)
-- **Specialized Tools**: Install tools from GitHub releases (Wabbajack, etc.)
+- **Package Management**: Chocolatey for primary software installation + Scoop for CLI tools
+- **Windows Features**: Automated enabling of Hyper-V, WSL2, Windows Sandbox
+- **Configuration Deployment**: PowerShell profiles, OBS settings, Firefox configurations
+- **Smart Rebooting**: Automatic reboots when needed with intelligent polling
+- **SSH-based**: Secure SSH connection with proper privilege separation
+- **Error Handling**: Continues on package failures with detailed reporting
 
-### ⚙️ Configuration Deployment
-- **PowerShell Environment**: Nerd Fonts, Oh-My-Posh, Terminal-Icons, and productivity modules
-- **PowerShell Profile**: Enhanced profile with useful aliases and functions
-- **Firefox userChrome.css**: Custom Firefox interface modifications  
-- **Sidebery**: Firefox sidebar tab management configuration
-- **OBS Studio**: Multi-profile portable OBS installations with plugins
+## 📋 Prerequisites
 
-## Quick Start
+### Ansible Controller (Linux)
+```bash
+# Install required Python packages
+pip install -r ansible-controller-requirements.txt
 
-### Option 1: Automatic Setup (Recommended)
-1. **Download and run the bootstrap script** (works with any PowerShell version):
+# Verify Ansible collections
+ansible-galaxy collection list | grep -E "(chocolatey|ansible.windows|community.windows)"
+```
+
+### Windows Target Machine
+1. **Run the setup script as Administrator**:
    ```powershell
-   .\setup.ps1
+   # On Windows target machine
+   .\setup-remoting.ps1
    ```
-   This script will:
-   - Handle execution policy restrictions automatically
-   - Install PowerShell 7+ if needed
-   - Launch the main deployment script
 
-### Option 2: Direct Deployment
-If you already have PowerShell 7+:
-```powershell
-.\deploy-files.ps1
+2. **Supported Windows Versions**:
+   - Windows 10 version 1809 (build 17763) or later
+   - Windows 11 (all versions)
+   - Windows Server 2019 or later
+
+## 🏗️ Architecture
+
+### SSH Connection Model
+- **Default**: Run as regular user (better security)
+- **Selective elevation**: Use `become: yes` only for tasks requiring admin rights
+- **Natural privilege separation**: Scoop installs as user, system features as admin
+
+### Role Structure
+```
+ansible/
+├── playbooks/
+│   └── site.yml                 # Main orchestration playbook
+├── roles/
+│   ├── chocolatey/             # System-wide package installation
+│   ├── scoop/                  # User-level CLI packages  
+│   ├── windows_features/       # Windows optional features
+│   ├── powershell_config/      # PowerShell profile deployment
+│   ├── obs_config/            # OBS Studio configuration
+│   └── firefox_config/        # Firefox settings deployment
+├── inventory/
+│   └── hosts.yml              # SSH connection configuration
+└── group_vars/
+    └── all.yml               # Global variables and package lists
 ```
 
-### Option 3: Individual Components
-```powershell
-# Enable Windows features (requires admin)
-.\installers\Enable-WindowsFeatures.ps1
+## ⚙️ Configuration
 
-# Install system dependencies
-.\installers\Install-Dependencies.ps1
-
-# Install applications
-.\installers\Install-Applications.ps1
-
-# Install specialized tools
-.\installers\Install-Tools.ps1
+### 1. Update Inventory
+Edit `ansible/inventory/hosts.yml`:
+```yaml
+target-windows:
+  ansible_host: YOUR_WINDOWS_IP
+  ansible_user: YOUR_USERNAME
+  ansible_password: YOUR_PASSWORD
+  ansible_connection: ssh
+  ansible_shell_type: powershell
 ```
 
-### Handling Execution Policy Restrictions
-If you encounter "execution of scripts is disabled" errors:
+### 2. Customize Package Lists
+Edit `ansible/group_vars/all.yml` to modify:
+- Chocolatey packages (essential, development, media, gaming, utilities)
+- Scoop packages (CLI tools)
+- Windows features to enable
+- Configuration paths
 
-**Option A**: Let the script handle it automatically
-```powershell
-.\setup.ps1
-```
+### 3. Role-specific Variables
+Each role has its own `defaults/main.yml` with package definitions and settings.
 
-**Option B**: Set execution policy manually (as Administrator)
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
+## 🎯 Usage
 
-**Option C**: Bypass for single session
-```powershell
-powershell -ExecutionPolicy Bypass -File setup.ps1
-```
+### Quick Start
+```bash
+cd ansible
 
-## Scripts Overview
+# Test connection
+ansible target-windows -i inventory/hosts.yml -m ping
 
-### Core Deployment
-- **`setup.ps1`**: Bootstrap script that installs PowerShell 7+ if needed
-- **`deploy-files.ps1`**: Main orchestrator that runs all deployment stages
-
-### Windows Features (`installers/Enable-WindowsFeatures.ps1`)
-Enables advanced Windows features with all sub-components:
-- **Hyper-V**: Full hypervisor platform with management tools and PowerShell module
-- **Windows Sandbox**: Isolated environment for testing applications
-- **WSL2**: Windows Subsystem for Linux with full kernel support
-
-**Requirements**: Administrator privileges, compatible Windows edition
-**Features**: Hardware virtualization detection, edition compatibility checking, reboot handling
-
-### System Dependencies (`installers/Install-Dependencies.ps1`)
-Installs required runtime libraries:
-- Microsoft Visual C++ 2015-2022 Redistributables (x64 & x86)
-- Future: Additional runtime libraries as needed
-
-### Applications (`installers/Install-Applications.ps1`)
-Installs applications via package managers:
-- Primary: Windows Package Manager (Winget)
-- Fallback: Scoop package manager
-- Configurable application list
-
-### Specialized Tools (`installers/Install-Tools.ps1`)
-Downloads and installs tools from GitHub releases:
-- Wabbajack modding tool
-- Creates desktop and Start Menu shortcuts
-- Portable installations to C:\Tools
-
-### Configuration Files
-- **`configs/powershell/`**: PowerShell profile with enhanced features
-- **`configs/firefox/`**: userChrome.css and Sidebery configuration
-- **`configs/obs/`**: OBS Studio portable setup with multiple profiles
-
-### PowerShell Environment (`configs/powershell/Setup-PowerShell.ps1`)
-Sets up a complete PowerShell development environment:
-- **Nerd Fonts**: CascadiaCove font with terminal icons and symbols
-- **Oh-My-Posh**: Cross-platform prompt theme engine with rich customization
-- **Terminal-Icons**: File and folder icons for enhanced terminal experience
-- **PSReadLine**: Enhanced command line editing with syntax highlighting
-- **Additional Modules**: ConsoleGuiTools, PSFzf for productivity
-
-**Features**: Font auto-installation, module dependency management, idempotent execution
-**User-friendly**: No admin rights required for font installation
-
-## Architecture
-
-### Shared Module (`modules/ComputerSetup.psm1`)
-Provides common functionality across all scripts:
-- Consistent status messaging and logging
-- File download and GitHub API interactions
-- Version comparison and file backup utilities
-- Package manager detection and testing
-- Admin privilege detection
-
-### Design Principles
-- **Modular**: Each script handles a specific concern
-- **Consistent**: Shared module ensures uniform behavior
-- **Robust**: Comprehensive error handling and validation
-- **Flexible**: Skip flags and configuration options
-- **Informative**: Detailed status messages and summaries
-
-## Usage Examples
-
-### Basic Setup
-```powershell
 # Run complete setup
-.\deploy-files.ps1
-
-# Run with force flag to reinstall everything
-.\deploy-files.ps1 -Force
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml
 ```
 
-### Individual Components
-```powershell
-# Enable Windows features only
-.\installers\Enable-WindowsFeatures.ps1
+### Selective Installation
+```bash
+# Only software packages
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags software
 
-# Skip specific features
-.\installers\Enable-WindowsFeatures.ps1 -SkipHyperV -SkipWindowsSandbox
+# Only Chocolatey packages
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags chocolatey
 
-# Setup PowerShell environment only
-.\configs\powershell\Setup-PowerShell.ps1
+# Only Windows features
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags features
 
-# Skip fonts but install modules
-.\configs\powershell\Setup-PowerShell.ps1 -SkipFonts
-
-# Install tools to custom directory
-.\installers\Install-Tools.ps1 -ToolsDirectory "D:\MyTools"
-
-# Skip specific OBS profiles
-.\configs\obs\setup-obs.ps1 -SkipTesting -SkipRecording
+# Skip reboots
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --skip-tags reboot
 ```
 
-## Requirements
+## 📦 Package Categories
 
-- **PowerShell 7.0+** (setup.ps1 can install this automatically)
-- **Windows 10/11** (some features require specific editions)
-- **Administrator privileges** (for Windows features and some installations)
-- **Internet connection** (for downloading components)
+### Chocolatey Packages
+- **Essential**: Firefox, 7zip
+- **Development**: Cursor, Git, Windows Terminal, Docker Desktop
+- **Media**: VLC, Spotify
+- **Gaming**: Steam, Epic Games, GOG Galaxy, Battle.net
+- **Utilities**: PowerToys, Discord, Google Drive, Flameshot, MobaXterm
 
-## Post-Installation
+### Scoop Packages
+- **CLI Tools**: fzf, psfzf, spotify-player
 
 ### Windows Features
-After enabling Windows features, a reboot may be required. Once complete:
-- **Hyper-V Manager**: Available in Administrative Tools
-- **Windows Sandbox**: Available in Start Menu  
-- **WSL2**: Install distributions from Microsoft Store or via `wsl --install`
+- **Hyper-V**: Complete virtualization platform
+- **WSL2**: Windows Subsystem for Linux
+- **Windows Sandbox**: Isolated desktop environment
 
-### Development Environment
-- PowerShell profile loads automatically in new sessions
-- Firefox with custom interface and Sidebery tab management
-- OBS Studio with optimized profiles for different use cases
-- Specialized tools available via desktop shortcuts
+## 🔧 Advanced Configuration
 
-## Troubleshooting
-
-### Execution Policy Issues
-If you see "execution of scripts is disabled on this system":
-
-**Automatic handling (Recommended)**:
+### SSH Key Authentication
 ```powershell
-.\setup.ps1
+# Generate SSH keys during setup
+.\setup-remoting.ps1 -EnableKeyAuth
+
+# Use key-based auth in inventory
+ansible_ssh_private_key_file: ~/.ssh/id_rsa
 ```
-The bootstrap script will automatically handle execution policy restrictions.
 
-**Manual resolution**:
-1. **For current user only** (recommended):
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-   ```
+### Custom Package Lists
+Add packages to role defaults:
+```yaml
+# roles/chocolatey/defaults/main.yml
+chocolatey:
+  packages:
+    utilities:
+      - name: "your-package"
+        description: "Your custom package"
+```
 
-2. **For single session** (temporary):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File setup.ps1
-   ```
+### Environment-specific Variables
+```yaml
+# group_vars/production.yml
+reboot:
+  auto_reboot: false  # Manual reboots in production
 
-3. **If you don't have admin rights**:
-   ```powershell
-   .\setup.ps1 -BypassExecutionPolicy
-   ```
+error_handling:
+  continue_on_package_failure: false  # Strict mode
+```
 
-### Common Issues
-- **PowerShell version**: Use `setup.ps1` to automatically install PowerShell 7+
-- **Windows features fail**: Check hardware virtualization support in BIOS/UEFI
-- **Downloads fail**: Check internet connection and firewall settings
-- **Winget not found**: The script will attempt to install it automatically
-- **Access denied errors**: Run PowerShell as Administrator for system-level changes
+## 🚨 Troubleshooting
 
-### Logs and Status
-All scripts provide detailed status messages during execution:
-- 🟢 **[OK]**: Successful operations
-- 🔵 **[INFO]**: Informational messages  
-- 🟡 **[WARN]**: Warnings (non-critical)
-- 🔴 **[ERROR]**: Critical errors
+### SSH Connection Issues
+```bash
+# Test SSH directly
+ssh username@windows-ip
 
-## Contributing
+# Check SSH service on Windows
+Get-Service sshd
+```
 
-This automation system is designed for personal use but can be adapted:
-1. Modify configuration files in `configs/` directories
-2. Update application lists in installer scripts
-3. Add new tools to `Install-Tools.ps1` configuration
-4. Extend shared module functionality as needed
+### Package Installation Failures
+```bash
+# Run with maximum verbosity
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml -vvv
+
+# Check specific package availability
+ansible target-windows -m win_shell -a "choco search package-name"
+```
+
+### Privilege Issues
+```bash
+# Verify user can elevate
+ansible target-windows -m win_shell -a "whoami" --become
+```
+
+## 🔄 Migration from PowerShell
+
+This project replaces a PowerShell-based setup with Ansible for:
+- **Better remote management**: SSH vs local execution
+- **Idempotency**: Only changes what needs changing
+- **Error handling**: Robust failure management
+- **Scalability**: Manage multiple machines
+- **Version control**: Infrastructure as code
+
+## 📝 Contributing
+
+1. Test changes with `--check` mode first
+2. Update role documentation for new packages
+3. Verify SSH functionality with test connections
+4. Follow Ansible best practices for variable naming
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
+
+---
+
+**Note**: This setup uses SSH instead of WinRM for better security and privilege separation. Scoop packages install naturally as regular user, while system changes use selective privilege escalation.

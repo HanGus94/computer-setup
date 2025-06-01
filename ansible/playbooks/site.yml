@@ -6,7 +6,7 @@
 - name: "Computer Setup - Complete Windows Configuration"
   hosts: windows
   gather_facts: yes
-  become: no
+  become: no  # Run as regular user by default
   
   vars:
     setup_start_time: "{{ ansible_date_time.iso8601 }}"
@@ -57,6 +57,7 @@
     - name: "Enable Windows Features"
       include_role:
         name: windows_features
+      become: yes  # Need admin for Windows features
       register: windows_features_result
       tags:
         - features
@@ -71,6 +72,7 @@
         pre_reboot_delay: 10  # Wait 10 seconds before rebooting
         post_reboot_delay: 30  # Wait 30 seconds after reboot before testing connection
         test_command: "whoami"  # Simple command to test if system is ready
+      become: yes  # Need admin for reboot
       when: 
         - windows_features_result is defined
         - windows_features_result is changed
