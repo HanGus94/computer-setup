@@ -54,11 +54,12 @@
         - scoop
     
     # Windows Features
-    - name: "Enable Windows Features"
-      include_role:
-        name: windows_features
+    - block:
+        - name: "Enable Windows Features"
+          include_role:
+            name: windows_features
+          register: windows_features_result
       become: yes  # Need admin for Windows features
-      register: windows_features_result
       tags:
         - features
         - windows_features
