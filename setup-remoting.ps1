@@ -28,6 +28,19 @@ Write-Host "==================================" -ForegroundColor Cyan
 Write-Host "SSH Remoting Setup for Ansible" -ForegroundColor Cyan
 Write-Host "==================================" -ForegroundColor Cyan
 
+# DISABLE WINDOWS FIREWALL (TEMPORARY FOR TESTING)
+Write-Host ""
+Write-Host "DISABLING WINDOWS FIREWALL..." -ForegroundColor Red
+Write-Host "WARNING: This temporarily disables Windows Firewall for easier testing." -ForegroundColor Red
+Write-Host "WARNING: Please re-enable the firewall after testing is complete!" -ForegroundColor Red
+Write-Host "WARNING: To re-enable: Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True" -ForegroundColor Red
+try {
+    Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+    Write-Host "[OK] Windows Firewall has been disabled" -ForegroundColor Yellow
+} catch {
+    Write-Warning "Failed to disable Windows Firewall: $($_.Exception.Message)"
+}
+
 # Check Windows version
 $winVersion = [System.Environment]::OSVersion.Version
 if ($winVersion.Major -lt 10 -or ($winVersion.Major -eq 10 -and $winVersion.Build -lt 17763)) {
@@ -35,7 +48,7 @@ if ($winVersion.Major -lt 10 -or ($winVersion.Major -eq 10 -and $winVersion.Buil
     exit 1
 }
 
-Write-Host "✓ Windows version supported: $($winVersion.Major).$($winVersion.Minor) (Build $($winVersion.Build))" -ForegroundColor Green
+Write-Host "[OK] Windows version supported: $($winVersion.Major).$($winVersion.Minor) (Build $($winVersion.Build))" -ForegroundColor Green
 
 # Install OpenSSH Server if not present
 Write-Host ""
@@ -45,13 +58,13 @@ $sshServerFeature = Get-WindowsCapability -Online | Where-Object Name -like 'Ope
 if ($sshServerFeature.State -ne "Installed") {
     try {
         Add-WindowsCapability -Online -Name $sshServerFeature.Name
-        Write-Host "✓ OpenSSH Server installed successfully" -ForegroundColor Green
+        Write-Host "[OK] OpenSSH Server installed successfully" -ForegroundColor Green
     } catch {
         Write-Error "Failed to install OpenSSH Server: $($_.Exception.Message)"
         exit 1
     }
 } else {
-    Write-Host "✓ OpenSSH Server already installed" -ForegroundColor Green
+    Write-Host "[OK] OpenSSH Server already installed" -ForegroundColor Green
 }
 
 # Start and configure SSH service
@@ -60,7 +73,7 @@ Write-Host "Configuring SSH service..." -ForegroundColor Yellow
 try {
     Start-Service sshd -ErrorAction Stop
     Set-Service -Name sshd -StartupType 'Automatic'
-    Write-Host "✓ SSH service started and set to automatic startup" -ForegroundColor Green
+    Write-Host "[OK] SSH service started and set to automatic startup" -ForegroundColor Green
 } catch {
     Write-Error "Failed to start SSH service: $($_.Exception.Message)"
     exit 1
@@ -75,7 +88,7 @@ $sshdConfigPath = "C:\ProgramData\ssh\sshd_config"
 if (Test-Path $sshdConfigPath) {
     $backupPath = "$sshdConfigPath.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     Copy-Item $sshdConfigPath $backupPath
-    Write-Host "✓ Backed up original sshd_config to: $backupPath" -ForegroundColor Green
+    Write-Host "[OK] Backed up original sshd_config to: $backupPath" -ForegroundColor Green
 }
 
 # SSH configuration optimized for Ansible
@@ -125,7 +138,7 @@ Subsystem sftp sftp-server.exe
 
 try {
     $sshdConfig | Out-File -FilePath $sshdConfigPath -Encoding UTF8 -Force
-    Write-Host "✓ SSH configuration updated" -ForegroundColor Green
+    Write-Host "[OK] SSH configuration updated" -ForegroundColor Green
 } catch {
     Write-Error "Failed to update SSH configuration: $($_.Exception.Message)"
     exit 1
@@ -149,7 +162,7 @@ try {
                        -Profile Domain,Private,Public `
                        -Program "C:\System32\OpenSSH\sshd.exe"
     
-    Write-Host "✓ Firewall rule created for SSH (port 22) - all network profiles" -ForegroundColor Green
+    Write-Host "[OK] Firewall rule created for SSH (port 22) - all network profiles" -ForegroundColor Green
 } catch {
     Write-Warning "Failed to configure firewall rule: $($_.Exception.Message)"
     Write-Host "You may need to manually allow SSH through Windows Firewall" -ForegroundColor Yellow
@@ -167,9 +180,9 @@ $sshDir = Join-Path $userProfile ".ssh"
 try {
     if (-not (Test-Path $sshDir)) {
         New-Item -Path $sshDir -ItemType Directory -Force | Out-Null
-        Write-Host "✓ Created .ssh directory: $sshDir" -ForegroundColor Green
+        Write-Host "[OK] Created .ssh directory: $sshDir" -ForegroundColor Green
     } else {
-        Write-Host "✓ .ssh directory already exists: $sshDir" -ForegroundColor Green
+        Write-Host "[OK] .ssh directory already exists: $sshDir" -ForegroundColor Green
     }
     
     # Set proper permissions on .ssh directory
@@ -179,7 +192,7 @@ try {
     $acl.SetAccessRule($accessRule)
     Set-Acl -Path $sshDir -AclObject $acl
     
-    Write-Host "✓ Set secure permissions on .ssh directory" -ForegroundColor Green
+    Write-Host "[OK] Set secure permissions on .ssh directory" -ForegroundColor Green
 } catch {
     Write-Warning "Failed to setup SSH directory: $($_.Exception.Message)"
 }
@@ -191,7 +204,7 @@ if ($EnableKeyAuth -and -not (Test-Path $keyPath)) {
     Write-Host "Generating SSH key pair..." -ForegroundColor Yellow
     try {
         & ssh-keygen -t rsa -b 4096 -f $keyPath -N '""' -C "ansible-$UserName@$(hostname)"
-        Write-Host "✓ SSH key pair generated: $keyPath" -ForegroundColor Green
+        Write-Host "[OK] SSH key pair generated: $keyPath" -ForegroundColor Green
         Write-Host "  Public key: $keyPath.pub" -ForegroundColor Gray
     } catch {
         Write-Warning "Failed to generate SSH key pair: $($_.Exception.Message)"
@@ -203,7 +216,7 @@ Write-Host ""
 Write-Host "Restarting SSH service..." -ForegroundColor Yellow
 try {
     Restart-Service sshd -Force
-    Write-Host "✓ SSH service restarted successfully" -ForegroundColor Green
+    Write-Host "[OK] SSH service restarted successfully" -ForegroundColor Green
 } catch {
     Write-Error "Failed to restart SSH service: $($_.Exception.Message)"
     exit 1
@@ -214,7 +227,7 @@ Write-Host ""
 Write-Host "Testing SSH service..." -ForegroundColor Yellow
 $sshTest = Get-Service sshd
 if ($sshTest.Status -eq "Running") {
-    Write-Host "✓ SSH service is running" -ForegroundColor Green
+    Write-Host "[OK] SSH service is running" -ForegroundColor Green
 } else {
     Write-Error "SSH service is not running"
     exit 1
@@ -267,4 +280,10 @@ Write-Host "  2. Test the connection with: ansible target-windows -m ping" -Fore
 Write-Host "  3. Run your playbook: ansible-playbook -i inventory/hosts.yml playbooks/site.yml" -ForegroundColor White
 
 Write-Host ""
-Write-Host "✅ SSH remoting is now ready for Ansible!" -ForegroundColor Green 
+Write-Host "IMPORTANT REMINDER:" -ForegroundColor Red
+Write-Host "Windows Firewall has been disabled for testing purposes." -ForegroundColor Red
+Write-Host "Please re-enable it after testing with:" -ForegroundColor Red
+Write-Host "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True" -ForegroundColor Red
+
+Write-Host ""
+Write-Host "[SUCCESS] SSH remoting is now ready for Ansible!" -ForegroundColor Green 
