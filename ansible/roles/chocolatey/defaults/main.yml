@@ -23,7 +23,9 @@ chocolatey:
         description: "Modern terminal application"
       - name: "docker-desktop"
         description: "Docker containerization platform"
-    
+      - name: "devpod"
+        description: "DevPod is a tool for creating and managing development environments on a variety of platforms."
+
     # Media Applications
     media:
       - name: "vlc"
