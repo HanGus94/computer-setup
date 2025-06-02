@@ -3,6 +3,12 @@
 # ===================================================
 # Uses community.windows collection for proper Scoop management
 
+- name: "Create Scoop global installation directory"
+  win_file:
+    path: "C:\\ProgramData\\scoop"
+    state: directory
+  tags: [scoop, software]
+
 - name: "Check if Scoop is installed globally"
   win_stat:
     path: "C:\\ProgramData\\scoop\\shims\\scoop.exe"
