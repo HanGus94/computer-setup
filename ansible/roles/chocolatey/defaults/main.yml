@@ -62,10 +62,10 @@ chocolatey:
       - name: "nilesoft-shell"
         description: "Windows shell replacement"
         verify_exists: true
-      - name: "elgato-wavelink"
+      - name: "wavelink"
         description: "Elgato Wavelink"
         verify_exists: true
-      - name: "elgato-streamdeck"
+      - name: "streamdeck"
         description: "Elgato Stream Deck"
         verify_exists: true
       - name: "elgato-camera-hub"
