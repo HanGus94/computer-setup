@@ -68,7 +68,7 @@ chocolatey:
       - name: "streamdeck"
         description: "Elgato Stream Deck"
         verify_exists: true
-      - name: "elgato-camera-hub"
+      - name: "elgato-camerahub"
         description: "Elgato Camera Hub"
         verify_exists: true
 
