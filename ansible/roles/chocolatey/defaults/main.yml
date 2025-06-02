@@ -39,8 +39,6 @@ chocolatey:
         description: "Epic Games digital distribution platform"
       - name: "goggalaxy"
         description: "GOG digital game distribution platform"
-      - name: "battle.net"
-        description: "Blizzard digital game distribution platform"
     
     # Utilities
     utilities:
