@@ -11,6 +11,46 @@ obs_config:
     - "Recording"
     - "Testing"
 
+# OBS Plugin Configuration
+# ========================
+# Plugins are installed per-profile to allow different setups
+obs_plugins:
+  Streaming:
+    - name: "obs-move-transition"
+      url: "https://codeload.github.com/exeldro/obs-move-transition/zip/refs/tags/3.1.3"
+    - name: "obs-scene-tree-view"
+      url: "https://github.com/DigitOtter/obs_scene_tree_view/releases/download/v0.1.6/obs_scene_tree_view_win_v0_1_6.zip"
+    - name: "scale to sound"
+      url: "https://github.com/dimtpap/obs-scale-to-sound/releases/download/1.2.4/scale-to-sound-1.2.4-windows-x64.zip"
+    - name: "scene as transition"
+      url: "https://obsproject.com/forum/resources/scene-as-transition.1704/version/5695/download?file=104917"
+    - name: "shader filter"
+      url: "https://github.com/exeldro/obs-shaderfilter/releases/download/2.5.0/obs-shaderfilter-2.5.0-windows.zip"
+    - name: "stroke glow shadow"
+      url: "https://obsproject.com/forum/resources/stroke-glow-shadow.1800/version/6168/download?file=112275"
+    - name: "scene notes dock"
+      url: "https://obsproject.com/forum/resources/scene-notes-dock.1398/version/5215/download?file=98837"
+    - name: "3d effect"
+      url: "https://obsproject.com/forum/resources/3d-effect.1692/download"
+    - name: "downstream keyer"
+      url: "https://obsproject.com/forum/resources/downstream-keyer.1254/version/5949/download?file=109371"
+    - name: "advanced masks"
+      url: "https://obsproject.com/forum/resources/advanced-masks.1856/version/5424/download?file=101265"
+    - name: "region of interest"
+      url: "https://github.com/derrod/obs-roi-ui/releases/download/1.1.1/obs-roi-ui-1.1.1-windows-x64.zip"
+
+  Recording:
+    - name: "obs-websocket"
+      url: "https://github.com/obsproject/obs-websocket/releases/download/4.9.1/obs-websocket-4.9.1-Windows.zip"
+    - name: "source-record"
+      url: "https://github.com/exeldro/obs-source-record/releases/download/1.3.5/source-record.zip"
+    - name: "obs-replay-source" 
+      url: "https://github.com/exeldro/obs-replay-source/releases/download/1.6.10/obs-replay-source.zip"
+    
+  Testing:
+    - name: "obs-websocket"
+      url: "https://github.com/obsproject/obs-websocket/releases/download/4.9.1/obs-websocket-4.9.1-Windows.zip"
+
 # Installation Categories (for selective installation)
 install_categories:
   essential: true

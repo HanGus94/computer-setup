@@ -1,0 +1,97 @@
+---
+# OBS Plugin Installation Tasks
+# =============================
+# Installs plugins for a specific OBS profile
+
+- name: "Display plugin installation for {{ profile_name }}"
+  debug:
+    msg: |
+      🔌 Installing plugins for {{ profile_name }} profile:
+      {% for plugin in profile_plugins %}
+      - {{ plugin.name }}
+      {% endfor %}
+
+- name: "Download and install plugins for {{ profile_name }}"
+  block:
+    - name: "Download plugin: {{ plugin.name }}"
+      win_get_url:
+        url: "{{ plugin.url }}"
+        dest: "{{ obs_config.target_base_directory }}\\{{ profile_name }}\\{{ plugin.name }}.zip"
+        timeout: 300
+        force: true
+      register: plugin_download
+      failed_when: false
+
+    - name: "Check if plugin download succeeded for {{ plugin.name }}"
+      debug:
+        msg: |
+          {% if plugin_download.status_code == 200 %}
+          ✅ Successfully downloaded {{ plugin.name }}
+          {% else %}
+          ❌ Failed to download {{ plugin.name }}: {{ plugin_download.msg | default('Unknown error') }}
+          {% endif %}
+
+    - name: "Extract plugin {{ plugin.name }} to {{ profile_name }}"
+      win_unzip:
+        src: "{{ plugin_download.dest }}"
+        dest: "{{ obs_config.target_base_directory }}\\{{ profile_name }}"
+        delete_archive: true
+      when: plugin_download.status_code == 200
+      failed_when: false
+      register: plugin_extract
+
+    - name: "Verify plugin extraction for {{ plugin.name }}"
+      debug:
+        msg: |
+          {% if plugin_extract.changed %}
+          ✅ Successfully extracted {{ plugin.name }} to {{ profile_name }}
+          {% elif plugin_download.status_code == 200 %}
+          ⚠️  Plugin {{ plugin.name }} extraction may have failed
+          {% else %}
+          ❌ Skipped extraction for {{ plugin.name }} due to download failure
+          {% endif %}
+
+  rescue:
+    - name: "Handle plugin installation failure for {{ plugin.name }}"
+      debug:
+        msg: |
+          ⚠️  Warning: Failed to install plugin {{ plugin.name }} for {{ profile_name }}
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+          Continuing with other plugins...
+
+  loop: "{{ profile_plugins }}"
+  loop_control:
+    loop_var: plugin
+  when: profile_plugins | length > 0
+
+- name: "Clean up any failed plugin downloads for {{ profile_name }}"
+  win_find:
+    paths: "{{ obs_config.target_base_directory }}\\{{ profile_name }}"
+    patterns: "*.zip"
+  register: leftover_zips
+
+- name: "Remove leftover plugin zip files for {{ profile_name }}"
+  win_file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ leftover_zips.files }}"
+  failed_when: false
+
+- name: "Verify plugin installation for {{ profile_name }}"
+  win_find:
+    paths: "{{ obs_config.target_base_directory }}\\{{ profile_name }}"
+    patterns: "obs-plugins"
+    file_type: directory
+  register: plugin_verification
+
+- name: "Display plugin verification for {{ profile_name }}"
+  debug:
+    msg: |
+      📦 Plugin verification for {{ profile_name }}:
+      {% if plugin_verification.files | length > 0 %}
+      ✅ obs-plugins directory found - plugins likely installed correctly
+      {% else %}
+      ⚠️  No obs-plugins directory found - plugins may not have installed properly
+      {% endif %}
+      
+      Attempted to install {{ profile_plugins | length }} plugins 

@@ -190,6 +190,35 @@
           - Launch obs64.exe from any directory to use that configuration
           - Streaming/Recording/Testing have separate settings and profiles
 
+    # Plugin Installation Block
+    - name: "OBS Plugin Installation Block"
+      block:
+        - name: "Install plugins for each OBS profile"
+          include_tasks: install_plugins.yml
+          vars:
+            profile_name: "{{ profile_item }}"
+            profile_plugins: "{{ obs_plugins[profile_item] | default([]) }}"
+          loop: "{{ obs_config.installation_directories }}"
+          loop_control:
+            loop_var: profile_item
+          when: obs_plugins is defined and obs_plugins[profile_item] is defined
+
+        - name: "Display plugin installation summary"
+          debug:
+            msg: |
+              🔌 OBS Plugin Installation Summary:
+              ===================================
+              {% for profile in obs_config.installation_directories %}
+              {% if obs_plugins[profile] is defined %}
+              {{ profile }} Profile:
+              {% for plugin in obs_plugins[profile] %}
+              - {{ plugin.name }}
+              {% endfor %}
+              {% endif %}
+              {% endfor %}
+              
+              ✅ Plugin installations completed!
+
   when: not obs_already_installed
 
 - name: "Display OBS skip summary"

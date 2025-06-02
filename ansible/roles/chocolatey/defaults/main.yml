@@ -70,6 +70,9 @@ chocolatey:
       - name: "elgato-camerahub"
         description: "Elgato Camera Hub"
         verify_exists: true
+      - name: "nvidia app"
+        description: "NVIDIA Application"
+        verify_exists: true
       - name: "wavelink"
         description: "Elgato Wavelink"
         verify_exists: true
