@@ -73,6 +73,9 @@ chocolatey:
       - name: "nvidia app"
         description: "NVIDIA Application"
         verify_exists: true
+      - name: "1password"
+        description: "1Password password manager"
+        verify_exists: true
       - name: "wavelink"
         description: "Elgato Wavelink"
         verify_exists: true
