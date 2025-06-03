@@ -1,0 +1,50 @@
+---
+# Install Single OBS Plugin
+# =========================
+# Installs a single plugin for an OBS profile
+
+- name: "Install plugin {{ plugin_name }} for {{ target_profile }}"
+  block:
+    - name: "Download plugin: {{ plugin_name }}"
+      win_get_url:
+        url: "{{ plugin_url }}"
+        dest: "{{ obs_config.target_base_directory }}\\{{ target_profile }}\\{{ plugin_name }}.zip"
+        timeout: 300
+        force: true
+      register: plugin_download
+
+    - name: "Check if plugin download succeeded for {{ plugin_name }}"
+      debug:
+        msg: |
+          {% if plugin_download.status_code == 200 %}
+          [OK] Successfully downloaded {{ plugin_name }}
+          {% else %}
+          [ERROR] Failed to download {{ plugin_name }}: {{ plugin_download.msg | default('Unknown error') }}
+          {% endif %}
+
+    - name: "Extract plugin {{ plugin_name }} to {{ target_profile }}"
+      win_unzip:
+        src: "{{ plugin_download.dest }}"
+        dest: "{{ obs_config.target_base_directory }}\\{{ target_profile }}"
+        delete_archive: true
+      when: plugin_download.status_code == 200
+      register: plugin_extract
+
+    - name: "Verify plugin extraction for {{ plugin_name }}"
+      debug:
+        msg: |
+          {% if plugin_extract.changed %}
+          [OK] Successfully extracted {{ plugin_name }} to {{ target_profile }}
+          {% elif plugin_download.status_code == 200 %}
+          [WARNING] Plugin {{ plugin_name }} extraction may have failed
+          {% else %}
+          [ERROR] Skipped extraction for {{ plugin_name }} due to download failure
+          {% endif %}
+
+  rescue:
+    - name: "Handle plugin installation failure for {{ plugin_name }}"
+      debug:
+        msg: |
+          [WARNING] Failed to install plugin {{ plugin_name }} for {{ target_profile }}
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+          Continuing with other plugins... 
