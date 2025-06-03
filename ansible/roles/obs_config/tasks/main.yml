@@ -149,7 +149,7 @@
         dest: "{{ desktop_path.stdout | trim }}\\OBS ({{ item.path | regex_replace('.*\\\\Tools\\\\([^\\\\]+)\\\\.*', '\\1') }}).lnk"
         description: "OBS Studio - {{ item.path | regex_replace('.*\\\\Tools\\\\([^\\\\]+)\\\\.*', '\\1') }} Profile"
         icon: "{{ item.path }},0"
-        directory: "{{ obs_config.target_base_directory }}\\{{ item.path | regex_replace('.*\\\\Tools\\\\([^\\\\]+)\\\\.*', '\\1') }}\\bin\\64-bit"
+        directory: "{{ obs_config.target_base_directory | replace('/', '\\') }}\\{{ item.path | regex_replace('.*\\\\Tools\\\\([^\\\\]+)\\\\.*', '\\1') }}\\bin\\64-bit"
       loop: "{{ obs_exe_locations.files }}"
       when: obs_exe_locations.files is defined and obs_exe_locations.files | length > 0
       register: shortcut_creation

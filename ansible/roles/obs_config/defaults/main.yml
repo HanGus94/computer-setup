@@ -16,8 +16,8 @@ obs_config:
 # Plugins are installed per-profile to allow different setups
 obs_plugins:
   Streaming:
-    - name: "obs-move-transition"
-      url: "https://codeload.github.com/exeldro/obs-move-transition/zip/refs/tags/3.1.3"
+    - name: "obs-move-plugin"
+      url: "https://obsproject.com/forum/resources/move.913/version/6257/download?file=113467"
     - name: "obs-scene-tree-view"
       url: "https://github.com/DigitOtter/obs_scene_tree_view/releases/download/v0.1.6/obs_scene_tree_view_win_v0_1_6.zip"
     - name: "scale to sound"
