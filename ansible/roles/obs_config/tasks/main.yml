@@ -143,15 +143,6 @@
       register: desktop_path
       changed_when: false
 
-    - name: "Display shortcut creation summary"
-      debug:
-        msg: |
-          Desktop Shortcuts Created:
-          {% for result in shortcut_creation.results %}
-          - {{ result.dest | basename | regex_replace('\\.lnk$', '') }}
-          {% endfor %}
-          Total shortcuts: {{ shortcut_creation.results | length }}
-
     - name: "Extract profile names from OBS executable paths"
       set_fact:
         obs_files_with_profiles: >-
@@ -175,6 +166,15 @@
       loop: "{{ obs_files_with_profiles }}"
       when: obs_files_with_profiles is defined and obs_files_with_profiles | length > 0
       register: shortcut_creation
+
+    - name: "Display shortcut creation summary"
+      debug:
+        msg: |
+          Desktop Shortcuts Created:
+          {% for result in shortcut_creation.results %}
+          - {{ result.dest | basename | regex_replace('\\.lnk$', '') }}
+          {% endfor %}
+          Total shortcuts: {{ shortcut_creation.results | length }}
 
     - name: "Clean up downloaded zip file"
       win_file:
