@@ -143,13 +143,17 @@
       register: desktop_path
       changed_when: false
 
+    - name: "Set base path with proper backslashes"
+      set_fact:
+        obs_base_path: "{{ obs_config.target_base_directory | replace('/', '\\\\') }}"
+
     - name: "Create desktop shortcuts for each OBS installation"
       win_shortcut:
-        src: "{{ obs_config.target_base_directory | replace('/', '\\') }}\\{{ item }}\\bin\\64bit\\obs64.exe"
+        src: "{{ obs_base_path }}\\{{ item }}\\bin\\64bit\\obs64.exe"
         dest: "{{ desktop_path.stdout | trim }}\\OBS ({{ item }}).lnk"
         description: "OBS Studio - {{ item }} Profile"
-        icon: "{{ obs_config.target_base_directory | replace('/', '\\') }}\\{{ item }}\\bin\\64bit\\obs64.exe,0"
-        directory: "{{ obs_config.target_base_directory | replace('/', '\\') }}\\{{ item }}\\bin\\64bit"
+        icon: "{{ obs_base_path }}\\{{ item }}\\bin\\64bit\\obs64.exe,0"
+        directory: "{{ obs_base_path }}\\{{ item }}\\bin\\64bit"
       loop: "{{ obs_config.installation_directories }}"
       register: shortcut_creation
 
