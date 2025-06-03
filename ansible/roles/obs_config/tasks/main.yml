@@ -143,25 +143,38 @@
       register: desktop_path
       changed_when: false
 
-    - name: "Create desktop shortcuts for each OBS installation"
-      win_shortcut:
-        src: "{{ item.path }}"
-        dest: "{{ desktop_path.stdout | trim }}\\OBS ({{ item.path.split('\\')[2] }}).lnk"
-        description: "OBS Studio - {{ item.path.split('\\')[2] }} Profile"
-        icon: "{{ item.path }},0"
-        directory: "{{ item.path | dirname }}"
-      loop: "{{ obs_exe_locations.files }}"
-      when: obs_exe_locations.files is defined and obs_exe_locations.files | length > 0
-      register: shortcut_creation
-
     - name: "Display shortcut creation summary"
       debug:
         msg: |
-          🔗 Desktop Shortcuts Created:
+          Desktop Shortcuts Created:
           {% for result in shortcut_creation.results %}
           - {{ result.dest | basename | regex_replace('\\.lnk$', '') }}
           {% endfor %}
           Total shortcuts: {{ shortcut_creation.results | length }}
+
+    - name: "Extract profile names from OBS executable paths"
+      set_fact:
+        obs_files_with_profiles: >-
+          [
+          {% for file in obs_exe_locations.files %}
+          {
+            'path': '{{ file.path }}',
+            'profile_name': '{{ file.path.split("\\")[2] }}'
+          }{{ ',' if not loop.last else '' }}
+          {% endfor %}
+          ]
+      when: obs_exe_locations.files is defined and obs_exe_locations.files | length > 0
+
+    - name: "Create desktop shortcuts for each OBS installation"
+      win_shortcut:
+        src: "{{ item.path }}"
+        dest: "{{ desktop_path.stdout | trim }}\\OBS ({{ item.profile_name }}).lnk"
+        description: "OBS Studio - {{ item.profile_name }} Profile"
+        icon: "{{ item.path }},0"
+        directory: "{{ item.path | dirname }}"
+      loop: "{{ obs_files_with_profiles }}"
+      when: obs_files_with_profiles is defined and obs_files_with_profiles | length > 0
+      register: shortcut_creation
 
     - name: "Clean up downloaded zip file"
       win_file:
