@@ -1,26 +1,39 @@
 ---
 # Install Single OBS Plugin
 # =========================
-# Installs a single plugin for an OBS profile
+# Installs a single plugin for an OBS profile with idempotency checking
+
+- name: "Check if plugin {{ plugin_name }} is already installed in {{ target_profile }}"
+  win_find:
+    paths: 
+      - "{{ obs_config.target_base_directory }}\\{{ target_profile }}\\obs-plugins"
+      - "{{ obs_config.target_base_directory }}\\{{ target_profile }}\\data\\obs-plugins"
+      - "{{ obs_config.target_base_directory }}\\{{ target_profile }}\\bin\\64bit"
+    patterns: 
+      - "*{{ plugin_name | replace(' ', '*') | replace('-', '*') }}*"
+      - "*{{ plugin_name | lower | replace(' ', '*') | replace('-', '*') }}*"
+    file_type: file
+    recurse: yes
+  register: existing_plugin_check
+  failed_when: false
+
+- name: "Display plugin check result for {{ plugin_name }}"
+  debug:
+    msg: "Plugin {{ plugin_name }} {{ 'already installed' if existing_plugin_check.files | length > 0 else 'not found - will install' }} in {{ target_profile }}"
 
 - name: "Install plugin {{ plugin_name }} for {{ target_profile }}"
   block:
     - name: "Download plugin: {{ plugin_name }}"
       win_get_url:
         url: "{{ plugin_url }}"
-        dest: "{{ obs_config.target_base_directory }}\\{{ target_profile }}\\{{ plugin_name }}.zip"
+        dest: "{{ obs_config.target_base_directory }}\\{{ target_profile }}\\{{ plugin_name | regex_replace('[^a-zA-Z0-9_-]', '_') }}.zip"
         timeout: 300
-        force: true
+        force: false
       register: plugin_download
 
-    - name: "Check if plugin download succeeded for {{ plugin_name }}"
+    - name: "Display download result for {{ plugin_name }}"
       debug:
-        msg: |
-          {% if plugin_download.status_code == 200 %}
-          [OK] Successfully downloaded {{ plugin_name }}
-          {% else %}
-          [ERROR] Failed to download {{ plugin_name }}: {{ plugin_download.msg | default('Unknown error') }}
-          {% endif %}
+        msg: "{{ 'Successfully downloaded' if plugin_download.status_code == 200 else 'Failed to download' }} {{ plugin_name }}"
 
     - name: "Extract plugin {{ plugin_name }} to {{ target_profile }}"
       win_unzip:
@@ -32,19 +45,19 @@
 
     - name: "Verify plugin extraction for {{ plugin_name }}"
       debug:
-        msg: |
-          {% if plugin_extract.changed %}
-          [OK] Successfully extracted {{ plugin_name }} to {{ target_profile }}
-          {% elif plugin_download.status_code == 200 %}
-          [WARNING] Plugin {{ plugin_name }} extraction may have failed
-          {% else %}
-          [ERROR] Skipped extraction for {{ plugin_name }} due to download failure
-          {% endif %}
+        msg: "{{ 'Successfully extracted' if plugin_extract.changed else 'Extraction may have failed for' }} {{ plugin_name }}"
+      when: plugin_download.status_code == 200
+
+    - name: "Clean up failed download for {{ plugin_name }}"
+      win_file:
+        path: "{{ plugin_download.dest }}"
+        state: absent
+      when: plugin_download.status_code != 200
+      failed_when: false
 
   rescue:
     - name: "Handle plugin installation failure for {{ plugin_name }}"
       debug:
-        msg: |
-          [WARNING] Failed to install plugin {{ plugin_name }} for {{ target_profile }}
-          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
-          Continuing with other plugins... 
+        msg: "Failed to install plugin {{ plugin_name }} for {{ target_profile }} - {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+  when: existing_plugin_check.files | length == 0 

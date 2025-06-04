@@ -178,4 +178,22 @@
       when: 
         - final_reboot_required.stdout | trim | bool
         - reboot.auto_reboot | default(true) | bool  # Changed default to true
-      tags: always 
+      tags: always
+
+# Standalone OBS Plugin Repair Play
+# =================================
+# Can be run independently to check and repair OBS plugins
+- name: "OBS Plugin Repair"
+  hosts: windows
+  gather_facts: no
+  become: no
+  
+  tasks:
+    - name: "Run OBS Plugin Repair"
+      include_role:
+        name: obs_config
+        tasks_from: repair_plugins
+      tags:
+        - obs_repair
+        - plugins
+        - repair 

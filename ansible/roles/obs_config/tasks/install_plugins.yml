@@ -1,15 +1,11 @@
 ---
 # OBS Plugin Installation Tasks
 # =============================
-# Installs plugins for a specific OBS profile
+# Installs plugins for a specific OBS profile with idempotency
 
-- name: "Display plugin installation for {{ profile_name }}"
+- name: "Display plugin installation start for {{ profile_name }}"
   debug:
-    msg: |
-      Installing plugins for {{ profile_name }} profile:
-      {% for plugin in profile_plugins %}
-      - {{ plugin.name }}
-      {% endfor %}
+    msg: "Installing {{ profile_plugins | length }} plugins for {{ profile_name }} profile: {{ profile_plugins | map(attribute='name') | join(', ') }}"
 
 - name: "Install individual plugins for {{ profile_name }}"
   include_tasks: install_single_plugin.yml
@@ -35,21 +31,74 @@
   loop: "{{ leftover_zips.files }}"
   failed_when: false
 
-- name: "Verify plugin installation for {{ profile_name }}"
+- name: "Verify plugin directories exist for {{ profile_name }}"
   win_find:
     paths: "{{ obs_config.target_base_directory }}\\{{ profile_name }}"
-    patterns: "obs-plugins"
+    patterns: 
+      - "obs-plugins"
+      - "data"
+      - "bin"
     file_type: directory
-  register: plugin_verification
+  register: plugin_directories
 
-- name: "Display plugin verification for {{ profile_name }}"
+- name: "Count installed plugin files for {{ profile_name }}"
+  win_find:
+    paths: "{{ obs_config.target_base_directory }}\\{{ profile_name }}"
+    patterns: 
+      - "*.dll"
+      - "*.so"
+      - "*.dylib"
+    recurse: yes
+  register: plugin_files
+  failed_when: false
+
+- name: "Display plugin installation summary for {{ profile_name }}"
   debug:
-    msg: |
-      Plugin verification for {{ profile_name }}:
-      {% if plugin_verification.files | length > 0 %}
-      [OK] obs-plugins directory found - plugins likely installed correctly
-      {% else %}
-      [WARNING] No obs-plugins directory found - plugins may not have installed properly
-      {% endif %}
-      
-      Attempted to install {{ profile_plugins | length }} plugins 
+    msg: "Plugin installation completed for {{ profile_name }} - {{ plugin_directories.files | length }} plugin directories, {{ plugin_files.files | length }} plugin files found"
+
+# Retry mechanism for failed installations
+- name: "Check for plugins that may need retry for {{ profile_name }}"
+  win_find:
+    paths: 
+      - "{{ obs_config.target_base_directory }}\\{{ profile_name }}\\obs-plugins"
+      - "{{ obs_config.target_base_directory }}\\{{ profile_name }}\\data\\obs-plugins"
+      - "{{ obs_config.target_base_directory }}\\{{ profile_name }}\\bin\\64bit"
+    patterns: 
+      - "*{{ plugin.name | replace(' ', '*') | replace('-', '*') }}*"
+      - "*{{ plugin.name | lower | replace(' ', '*') | replace('-', '*') }}*"
+    file_type: file
+    recurse: yes
+  register: plugin_retry_check
+  loop: "{{ profile_plugins }}"
+  loop_control:
+    loop_var: plugin
+  failed_when: false
+
+- name: "Identify plugins needing retry for {{ profile_name }}"
+  set_fact:
+    plugins_needing_retry: >-
+      {{
+        profile_plugins | selectattr('name', 'in', 
+          plugin_retry_check.results | 
+          selectattr('files', 'defined') | 
+          selectattr('files', '==', []) | 
+          map(attribute='plugin') | 
+          map(attribute='name') | 
+          list
+        ) | list
+      }}
+
+- name: "Retry failed plugin installations for {{ profile_name }}"
+  include_tasks: install_single_plugin.yml
+  vars:
+    plugin_name: "{{ retry_plugin.name }}"
+    plugin_url: "{{ retry_plugin.url }}"
+    target_profile: "{{ profile_name }}"
+  loop: "{{ plugins_needing_retry }}"
+  loop_control:
+    loop_var: retry_plugin
+  when: plugins_needing_retry | length > 0
+
+- name: "Display retry summary for {{ profile_name }}"
+  debug:
+    msg: "Retried installation for {{ plugins_needing_retry | length }} plugins in {{ profile_name }}: {{ plugins_needing_retry | map(attribute='name') | join(', ') if plugins_needing_retry | length > 0 else 'none' }}" 

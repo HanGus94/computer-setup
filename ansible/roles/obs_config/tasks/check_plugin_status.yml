@@ -1,0 +1,34 @@
+---
+# Check OBS Plugin Status
+# =======================
+# Checks the installation status of all plugins across all profiles
+
+- name: "Get all installed plugins for {{ profile_name }}"
+  win_find:
+    paths: "{{ obs_config.target_base_directory }}\\{{ profile_name }}"
+    patterns: 
+      - "*.dll"
+      - "*.exe"
+      - "obs-*.dll"
+      - "*plugin*.dll"
+    recurse: yes
+  register: profile_installed_plugins
+  failed_when: false
+
+- name: "Create plugin status for {{ profile_name }}"
+  set_fact:
+    plugin_status: >-
+      {{
+        plugin_status | default({}) | combine({
+          profile_name: {
+            'configured_plugins': obs_plugins[profile_name] | default([]) | length,
+            'installed_files': profile_installed_plugins.files | length,
+            'plugin_files': profile_installed_plugins.files | map(attribute='path') | map('basename') | list,
+            'has_obs_plugins_dir': (profile_installed_plugins.files | selectattr('path', 'search', 'obs-plugins') | list | length > 0)
+          }
+        })
+      }}
+
+- name: "Display plugin status for {{ profile_name }}"
+  debug:
+    msg: "{{ profile_name }} - Configured: {{ plugin_status[profile_name].configured_plugins }}, Installed files: {{ plugin_status[profile_name].installed_files }}, Has plugin directory: {{ plugin_status[profile_name].has_obs_plugins_dir }}" 

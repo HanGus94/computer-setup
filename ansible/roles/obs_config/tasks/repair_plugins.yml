@@ -1,0 +1,75 @@
+---
+# Repair OBS Plugins
+# ==================
+# Standalone task to check and reinstall missing plugins for all profiles
+
+- name: "Display plugin repair start"
+  debug:
+    msg: "Starting OBS plugin repair process for all profiles"
+
+- name: "Check current plugin status for all profiles"
+  include_tasks: check_plugin_status.yml
+  vars:
+    profile_name: "{{ profile_item }}"
+  loop: "{{ obs_config.installation_directories }}"
+  loop_control:
+    loop_var: profile_item
+
+- name: "Scan for missing plugins in all profiles"
+  block:
+    - name: "Check each configured plugin for {{ profile_item }}"
+      win_find:
+        paths: 
+          - "{{ obs_config.target_base_directory }}\\{{ profile_item }}\\obs-plugins"
+          - "{{ obs_config.target_base_directory }}\\{{ profile_item }}\\data\\obs-plugins"
+          - "{{ obs_config.target_base_directory }}\\{{ profile_item }}\\bin\\64bit"
+        patterns: 
+          - "*{{ plugin.name | replace(' ', '*') | replace('-', '*') }}*"
+          - "*{{ plugin.name | lower | replace(' ', '*') | replace('-', '*') }}*"
+        file_type: file
+        recurse: yes
+      register: missing_plugin_check
+      loop: "{{ obs_plugins[profile_item] | default([]) }}"
+      loop_control:
+        loop_var: plugin
+      failed_when: false
+
+    - name: "Identify missing plugins for {{ profile_item }}"
+      set_fact:
+        missing_plugins: >-
+          {{
+            missing_plugins | default({}) | combine({
+              profile_item: obs_plugins[profile_item] | default([]) | selectattr('name', 'in', 
+                missing_plugin_check.results | 
+                selectattr('files', 'defined') | 
+                selectattr('files', '==', []) | 
+                map(attribute='plugin') | 
+                map(attribute='name') | 
+                list
+              ) | list
+            })
+          }}
+
+    - name: "Display missing plugins for {{ profile_item }}"
+      debug:
+        msg: "{{ profile_item }} missing plugins: {{ missing_plugins[profile_item] | map(attribute='name') | join(', ') if missing_plugins[profile_item] | length > 0 else 'none' }}"
+
+  loop: "{{ obs_config.installation_directories }}"
+  loop_control:
+    loop_var: profile_item
+
+- name: "Reinstall missing plugins"
+  include_tasks: install_plugins.yml
+  vars:
+    profile_name: "{{ profile_with_missing.key }}"
+    profile_plugins: "{{ profile_with_missing.value }}"
+  loop: "{{ missing_plugins | dict2items }}"
+  loop_control:
+    loop_var: profile_with_missing
+  when: 
+    - missing_plugins is defined
+    - profile_with_missing.value | length > 0
+
+- name: "Display plugin repair summary"
+  debug:
+    msg: "Plugin repair completed - Profiles processed: {{ missing_plugins | dict2items | length if missing_plugins is defined else 0 }}, Total missing plugins found: {{ missing_plugins | dict2items | map(attribute='value') | map('length') | sum if missing_plugins is defined else 0 }}" 

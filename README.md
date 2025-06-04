@@ -120,6 +120,24 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags power
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml --skip-tags reboot
 ```
 
+### OBS Plugin Management
+```bash
+# Check plugin status for all profiles
+ansible-playbook -i inventory/hosts.yml playbooks/obs-plugins.yml --tags status
+
+# Repair/reinstall missing plugins
+ansible-playbook -i inventory/hosts.yml playbooks/obs-plugins.yml --tags repair
+
+# Install plugins for specific profile
+ansible-playbook -i inventory/hosts.yml playbooks/obs-plugins.yml --tags install_profile -e target_profile=Streaming
+
+# Run OBS plugin repair from main playbook
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags obs_repair
+
+# Install only OBS software (without plugins)
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags obs
+```
+
 ## 📦 Package Categories
 
 ### Chocolatey Packages

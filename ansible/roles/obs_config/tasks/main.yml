@@ -172,6 +172,20 @@
 
   when: not obs_already_installed
 
+# Plugin Status Check (for both new and existing installations)
+- name: "Check plugin status for all profiles"
+  include_tasks: check_plugin_status.yml
+  vars:
+    profile_name: "{{ profile_item }}"
+  loop: "{{ obs_config.installation_directories }}"
+  loop_control:
+    loop_var: profile_item
+
+- name: "Display comprehensive plugin status summary"
+  debug:
+    msg: "Plugin Status Summary - {{ plugin_status | default({}) | dict2items | map('regex_replace', '^(.*)$', '\\1: ' + (plugin_status[item.key].configured_plugins | string) + ' configured, ' + (plugin_status[item.key].installed_files | string) + ' files') | join(' | ') if plugin_status is defined else 'No plugin status available' }}"
+  when: plugin_status is defined
+
 - name: "Display OBS skip summary"
   debug:
     msg: "OBS installations already exist - skipping installation"
