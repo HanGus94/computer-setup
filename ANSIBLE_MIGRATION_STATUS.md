@@ -35,8 +35,16 @@
   - Supports both files and directories
   
 - [x] **firefox_config** - Firefox configuration deployment
+  - Configuration files moved to `ansible/roles/firefox_config/files/`
+  - Updated to use role-relative file paths
   - Deploys to Firefox profile directories
   - Auto-detects existing profiles
+
+- [x] **power_management** - Windows power plan management
+  - Manages Windows power plans including Ultimate Performance
+  - Automatically enables Ultimate Performance if not available
+  - Supports all power plans: Ultimate Performance, High Performance, Balanced, Power Saver
+  - Intelligent detection and idempotent configuration
 
 ### Documentation
 - [x] Comprehensive README for Ansible setup
@@ -167,6 +175,7 @@ computer-setup/
 │   │   ├── chocolatey/
 │   │   ├── scoop/
 │   │   ├── windows_features/
+│   │   ├── power_management/             # ✅ Windows power plan management
 │   │   └── obs_config/
 │   ├── playbooks/site.yml
 │   ├── inventory/hosts.yml

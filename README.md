@@ -6,6 +6,7 @@ Automated Windows computer setup using Ansible for software installation, config
 
 - **Package Management**: Chocolatey for primary software installation + Scoop for CLI tools
 - **Windows Features**: Automated enabling of Hyper-V, WSL2, Windows Sandbox
+- **Power Management**: Automatic configuration of Windows power plans including Ultimate Performance
 - **Configuration Deployment**: PowerShell profiles, OBS settings, Firefox configurations
 - **Smart Rebooting**: Automatic reboots when needed with intelligent polling
 - **SSH-based**: Secure SSH connection with proper privilege separation
@@ -51,6 +52,7 @@ ansible/
 │   ├── chocolatey/             # System-wide package installation
 │   ├── scoop/                  # User-level CLI packages  
 │   ├── windows_features/       # Windows optional features
+│   ├── power_management/       # Windows power plan management
 │   ├── powershell_config/      # PowerShell profile deployment
 │   │   └── files/              # PowerShell configuration files
 │   ├── obs_config/            # OBS Studio configuration
@@ -81,6 +83,7 @@ Edit `ansible/group_vars/all.yml` to modify:
 - Chocolatey packages (essential, development, media, gaming, utilities)
 - Scoop packages (CLI tools)
 - Windows features to enable
+- Power management settings (Ultimate Performance, High Performance, etc.)
 - Configuration paths
 
 ### 3. Role-specific Variables
@@ -110,6 +113,9 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags chocolatey
 # Only Windows features
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags features
 
+# Only power management
+ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags power
+
 # Skip reboots
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml --skip-tags reboot
 ```
@@ -130,6 +136,12 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml --skip-tags reboot
 - **Hyper-V**: Complete virtualization platform
 - **WSL2**: Windows Subsystem for Linux
 - **Windows Sandbox**: Isolated desktop environment
+
+### Power Management
+- **Ultimate Performance**: Maximum performance with disabled CPU frequency scaling and core parking
+- **High Performance**: High performance mode with reduced power saving features  
+- **Balanced**: Automatic balance between performance and power consumption (default)
+- **Power Saver**: Maximum power savings with reduced performance for mobile devices
 
 ## 🔧 Advanced Configuration
 
@@ -161,6 +173,12 @@ reboot:
 
 error_handling:
   continue_on_package_failure: false  # Strict mode
+
+# Power management for workstations
+power_management:
+  power_plan: "ultimate_performance"  # Maximum performance
+  enable_ultimate_performance: true
+  force_set: true
 ```
 
 ## 🚨 Troubleshooting

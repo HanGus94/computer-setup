@@ -1,0 +1,38 @@
+---
+# Power Management Role Default Variables
+# ======================================
+
+# Power Management Configuration
+power_management:
+  # Power plan to set (ultimate_performance, high_performance, balanced, power_saver)
+  power_plan: "ultimate_performance"
+  
+  # Whether to enable Ultimate Performance if it doesn't exist
+  enable_ultimate_performance: true
+  
+  # Whether to force setting the power plan even if already active
+  force_set: false
+
+# Power Plan GUIDs
+power_plan_guids:
+  ultimate_performance: "e9a42b02-d5df-448d-aa00-03f14749eb61"
+  high_performance: "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
+  balanced: "381b4222-f694-41f0-9685-ff5bb260df2e"
+  power_saver: "a1841308-3541-4fab-bc81-f71556f20b4a"
+
+# Installation Categories (for selective installation)
+install_categories:
+  essential: true
+  development: true
+  media: true
+  gaming: true
+  utilities: true
+  scoop_packages: true
+  windows_features: true
+  power_management: true
+
+# Error Handling
+error_handling:
+  continue_on_package_failure: true
+  package_failure_is_warning: true
+  feature_failure_is_warning: false 

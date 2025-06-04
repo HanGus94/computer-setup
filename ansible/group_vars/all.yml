@@ -1,0 +1,39 @@
+---
+# Global Variables for Computer Setup
+# ===================================
+
+# Installation Categories - Control which components to install
+install_categories:
+  essential: true              # Essential software (browsers, utilities)
+  development: true            # Development tools (Cursor, Git, etc.)
+  media: true                  # Media applications (VLC, etc.) 
+  gaming: true                 # Gaming platforms (Steam, Epic, etc.)
+  utilities: true              # Utility applications (PowerToys, Discord, etc.)
+  scoop_packages: true         # Scoop CLI packages
+  windows_features: true       # Windows optional features
+  power_management: true       # Power plan management
+
+# Power Management Configuration
+power_management:
+  # Power plan to set: ultimate_performance, high_performance, balanced, power_saver
+  power_plan: "ultimate_performance"
+  
+  # Whether to enable Ultimate Performance if it doesn't exist
+  enable_ultimate_performance: true
+  
+  # Whether to force setting the power plan even if already active
+  force_set: false
+
+# Error Handling
+error_handling:
+  continue_on_package_failure: true
+  package_failure_is_warning: true
+  feature_failure_is_warning: false
+
+# Reboot Management
+reboot:
+  auto_reboot: true
+  reboot_timeout: 900          # 15 minutes
+  connect_timeout: 60          # 1 minute
+  pre_reboot_delay: 10         # Wait before rebooting
+  post_reboot_delay: 30        # Wait after reboot 

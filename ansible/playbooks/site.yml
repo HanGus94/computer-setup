@@ -106,6 +106,15 @@
         - windows_features
         - reboot
     
+    # Power Management Configuration
+    - name: "Configure Windows Power Management"
+      include_role:
+        name: power_management
+      tags:
+        - config
+        - power
+        - power_management
+    
     # PowerShell Configuration
     - name: "Deploy PowerShell Configuration"
       include_role:

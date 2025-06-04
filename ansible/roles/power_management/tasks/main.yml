@@ -1,0 +1,134 @@
+---
+# Power Management Role - Main Tasks
+# ==================================
+# Manages Windows power plans including Ultimate Performance
+
+- name: "Check if power management is enabled"
+  debug:
+    msg: "Power management configuration started - setting {{ power_management.power_plan }} power plan"
+  when: install_categories.power_management | default(true)
+
+- name: "Get current active power scheme"
+  win_shell: powercfg /getactivescheme
+  register: current_power_scheme
+  changed_when: false
+  when: install_categories.power_management | default(true)
+
+- name: "Display current power scheme"
+  debug:
+    msg: "Current active power scheme: {{ current_power_scheme.stdout.strip() }}"
+  when: 
+    - install_categories.power_management | default(true)
+    - current_power_scheme.stdout is defined
+
+- name: "List available power schemes"
+  win_shell: powercfg /list
+  register: available_schemes
+  changed_when: false
+  when: install_categories.power_management | default(true)
+
+- name: "Check if Ultimate Performance plan exists"
+  set_fact:
+    ultimate_performance_exists: "{{ power_plan_guids.ultimate_performance in available_schemes.stdout }}"
+  when: 
+    - install_categories.power_management | default(true)
+    - power_management.power_plan == "ultimate_performance"
+
+- name: "Enable Ultimate Performance power plan (if not exists)"
+  win_shell: powercfg /duplicatescheme {{ power_plan_guids.ultimate_performance }}
+  register: enable_ultimate_result
+  when: 
+    - install_categories.power_management | default(true)
+    - power_management.power_plan == "ultimate_performance"
+    - power_management.enable_ultimate_performance | default(true)
+    - not (ultimate_performance_exists | default(false))
+  failed_when: false
+
+- name: "Display Ultimate Performance enablement result"
+  debug:
+    msg: |
+      Ultimate Performance power plan enablement result:
+      {% if enable_ultimate_result.rc == 0 %}
+      ✅ Successfully enabled Ultimate Performance power plan
+      New GUID: {{ enable_ultimate_result.stdout.strip() }}
+      {% else %}
+      ❌ Failed to enable Ultimate Performance power plan
+      Error: {{ enable_ultimate_result.stderr | default('Unknown error') }}
+      Note: This may be normal on devices with locked power subsystems (e.g., Surface devices)
+      {% endif %}
+  when: 
+    - install_categories.power_management | default(true)
+    - enable_ultimate_result is defined
+    - enable_ultimate_result.rc is defined
+
+- name: "Get target power plan GUID"
+  set_fact:
+    target_power_guid: "{{ power_plan_guids[power_management.power_plan] }}"
+  when: install_categories.power_management | default(true)
+
+- name: "Check if target power plan is already active"
+  set_fact:
+    plan_already_active: "{{ target_power_guid in current_power_scheme.stdout }}"
+  when: 
+    - install_categories.power_management | default(true)
+    - current_power_scheme.stdout is defined
+    - target_power_guid is defined
+
+- name: "Set power plan to {{ power_management.power_plan }}"
+  win_shell: powercfg /setactive {{ target_power_guid }}
+  register: set_power_plan_result
+  when: 
+    - install_categories.power_management | default(true)
+    - target_power_guid is defined
+    - (not (plan_already_active | default(false)) or power_management.force_set | default(false))
+  failed_when: false
+
+- name: "Verify power plan was set successfully"
+  win_shell: powercfg /getactivescheme
+  register: verify_power_scheme
+  changed_when: false
+  when: 
+    - install_categories.power_management | default(true)
+    - set_power_plan_result is defined
+
+- name: "Display power management summary"
+  debug:
+    msg: |
+      🔋 Power Management Summary:
+      ============================
+      Target Power Plan: {{ power_management.power_plan | title | replace('_', ' ') }}
+      Target GUID: {{ target_power_guid | default('Unknown') }}
+      
+      {% if plan_already_active | default(false) and not (power_management.force_set | default(false)) %}
+      ✅ Power plan was already active - no change needed
+      {% elif set_power_plan_result is defined and set_power_plan_result.rc == 0 %}
+      ✅ Power plan set successfully!
+      {% elif set_power_plan_result is defined and set_power_plan_result.rc != 0 %}
+      ❌ Failed to set power plan
+      Error: {{ set_power_plan_result.stderr | default('Unknown error') }}
+      {% endif %}
+      
+      {% if verify_power_scheme is defined %}
+      Current Active Scheme: {{ verify_power_scheme.stdout.strip() }}
+      {% endif %}
+      
+      📝 Power Plan Benefits:
+      {% if power_management.power_plan == "ultimate_performance" %}
+      • Maximum performance with disabled CPU frequency scaling
+      • Disabled core parking for consistent performance
+      • Optimized for workstations and high-performance tasks
+      • May increase power consumption
+      {% elif power_management.power_plan == "high_performance" %}
+      • High performance with maximum CPU utilization
+      • Reduced power saving features
+      • Better for performance-critical applications
+      {% elif power_management.power_plan == "balanced" %}
+      • Automatic balance between performance and power saving
+      • CPU frequency scaling based on demand
+      • Default recommended setting for most users
+      {% elif power_management.power_plan == "power_saver" %}
+      • Maximum power savings with reduced performance
+      • Aggressive CPU frequency scaling
+      • Best for battery life on mobile devices
+      {% endif %}
+  when: install_categories.power_management | default(true) 
