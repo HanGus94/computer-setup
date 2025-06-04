@@ -60,7 +60,9 @@ chocolatey:
         description: "Enhanced terminal for Windows"
       - name: "zoxide"
         description: "Smart cd command"
-      # Note: These may need verification in Chocolatey
+      - name: "nerd-fonts-cascadiacode"
+        description: "Cascadia Code Nerd Font"
+        verify_exists: true
       - name: "nilesoft-shell"
         description: "Windows shell replacement"
         verify_exists: true
