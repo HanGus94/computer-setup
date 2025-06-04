@@ -29,10 +29,19 @@
 
 - name: "Check if Ultimate Performance plan exists"
   set_fact:
-    ultimate_performance_exists: "{{ power_plan_guids.ultimate_performance in available_schemes.stdout }}"
+    ultimate_performance_exists: "{{ 'Ultimate Performance' in available_schemes.stdout or 'Ultimate performance' in available_schemes.stdout }}"
   when: 
     - install_categories.power_management | default(true)
     - power_management.power_plan == "ultimate_performance"
+
+- name: "Extract existing Ultimate Performance GUID (if exists)"
+  set_fact:
+    existing_ultimate_guid: "{{ available_schemes.stdout | regex_search('([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}).*Ultimate [Pp]erformance', '\\1') | first }}"
+  when: 
+    - install_categories.power_management | default(true)
+    - power_management.power_plan == "ultimate_performance"
+    - ultimate_performance_exists | default(false)
+  failed_when: false
 
 - name: "Enable Ultimate Performance power plan (if not exists)"
   win_shell: powercfg /duplicatescheme {{ power_plan_guids.ultimate_performance }}
@@ -67,13 +76,14 @@
     target_power_guid: >-
       {{
         new_ultimate_guid if (power_management.power_plan == "ultimate_performance" and new_ultimate_guid is defined)
+        else existing_ultimate_guid if (power_management.power_plan == "ultimate_performance" and existing_ultimate_guid is defined)
         else power_plan_guids[power_management.power_plan]
       }}
   when: install_categories.power_management | default(true)
 
 - name: "Debug GUID selection"
   debug:
-    msg: "Using {{ power_management.power_plan }} GUID: {{ target_power_guid }} {{ '(newly created)' if new_ultimate_guid is defined else '(existing)' }}"
+    msg: "Using {{ power_management.power_plan }} GUID: {{ target_power_guid }} {{ '(newly created)' if new_ultimate_guid is defined else ('(existing duplicate)' if existing_ultimate_guid is defined else '(default)') }}"
   when: 
     - install_categories.power_management | default(true)
     - target_power_guid is defined
