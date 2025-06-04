@@ -59,6 +59,8 @@
   when: 
     - install_categories.power_management | default(true)
     - enable_ultimate_result is defined
+    - enable_ultimate_result is not skipped
+    - enable_ultimate_result.rc is defined
     - enable_ultimate_result.rc == 0
     - enable_ultimate_result.stdout is defined
     - enable_ultimate_result.stdout.strip() | regex_search('[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}')
@@ -69,6 +71,7 @@
   when: 
     - install_categories.power_management | default(true)
     - enable_ultimate_result is defined
+    - enable_ultimate_result is not skipped
     - enable_ultimate_result.rc is defined
 
 - name: "Get target power plan GUID"
