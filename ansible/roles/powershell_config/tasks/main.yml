@@ -70,15 +70,4 @@
 
 - name: "Display PowerShell configuration summary"
   debug:
-    msg: |
-      🔧 PowerShell Configuration Summary:
-      ===================================
-      Target Directory: {{ powershell_documents_path.stdout | trim }}
-      Profile Files Copied: {{ profile_copy_result.results | length }}
-      Additional Files Copied: {{ additional_copy_result.results | length if additional_copy_result is defined else 0 }}
-      
-      ✅ PowerShell configuration deployment completed!
-      
-      📝 Next Steps:
-      - Restart PowerShell to load the new profile
-      - The profile will be automatically loaded in new PowerShell sessions 
+    msg: "PowerShell configuration deployment completed - Target: {{ powershell_documents_path.stdout | trim }}, Profile files: {{ profile_copy_result.results | length }}, Additional files: {{ additional_copy_result.results | length if additional_copy_result is defined else 0 }}" 

@@ -192,14 +192,5 @@
 
 - name: "Display installation summary"
   debug:
-    msg: |
-      📦 Package Installation Summary:
-      ==============================
-      Essential: {{ package_summary.essential }} packages
-      Development: {{ package_summary.development }} packages  
-      Media: {{ package_summary.media }} packages
-      Gaming: {{ package_summary.gaming }} packages
-      Utilities: {{ package_summary.utilities }} packages
-      
-      ✅ Software installation completed!
+    msg: "Package installation completed - Essential: {{ package_summary.essential }}, Development: {{ package_summary.development }}, Media: {{ package_summary.media }}, Gaming: {{ package_summary.gaming }}, Utilities: {{ package_summary.utilities }}"
   tags: [chocolatey, software] 

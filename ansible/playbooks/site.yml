@@ -14,15 +14,7 @@
   pre_tasks:
     - name: "Display setup information"
       debug:
-        msg: |
-          =======================================================
-          Windows Computer Setup Starting
-          =======================================================
-          Target Host: {{ inventory_hostname }}
-          Setup Time: {{ setup_start_time }}
-          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
-          Architecture: {{ ansible_architecture }}
-          =======================================================
+        msg: "Windows Computer Setup Starting - Host: {{ inventory_hostname }}, OS: {{ ansible_distribution }} {{ ansible_distribution_version }}, Time: {{ setup_start_time }}"
       tags: always
 
     - name: "Verify PowerShell execution policy"
@@ -142,18 +134,7 @@
   post_tasks:
     - name: "Setup completion summary"
       debug:
-        msg: |
-          =======================================================
-          Windows Computer Setup Complete!
-          =======================================================
-          Started: {{ setup_start_time }}
-          Completed: {{ ansible_date_time.iso8601 }}
-          Host: {{ inventory_hostname }}
-          
-          Next Steps:
-          - Launch applications to verify installation
-          - Configure application-specific settings as needed
-          =======================================================
+        msg: "Windows Computer Setup Complete - Started: {{ setup_start_time }}, Completed: {{ ansible_date_time.iso8601 }}, Host: {{ inventory_hostname }}"
       tags: always
 
     - name: "Check if final reboot is required"
@@ -183,9 +164,7 @@
 
     - name: "Final reboot notification"
       debug:
-        msg: |
-          ✅ Setup completed successfully!
-          {{ 'A final reboot is recommended but not required.' if final_reboot_required.stdout | trim | bool else 'No reboot required.' }}
+        msg: "Setup completed successfully! {{ 'Final reboot recommended.' if final_reboot_required.stdout | trim | bool else 'No reboot required.' }}"
       tags: always
 
     - name: "Optional final reboot"

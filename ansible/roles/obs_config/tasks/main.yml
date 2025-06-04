@@ -26,11 +26,7 @@
 
 - name: "Display OBS installation status"
   debug:
-    msg: |
-      🎥 OBS Installation Status Check:
-      ================================
-      {{ 'All OBS installations found - skipping download/deployment' if obs_already_installed else 'OBS installations not found - proceeding with download/deployment' }}
-      Existing installations: {{ existing_obs_check.results | selectattr('files', 'defined') | selectattr('files', '!=', []) | list | length }}/3
+    msg: "{{ 'All OBS installations found - skipping download' if obs_already_installed else 'OBS installations not found - proceeding with download' }} ({{ existing_obs_check.results | selectattr('files', 'defined') | selectattr('files', '!=', []) | list | length }}/3)"
 
 - name: "OBS Download and Installation Block"
   block:
@@ -58,11 +54,7 @@
 
     - name: "Display OBS version info"
       debug:
-        msg: |
-          📦 OBS Studio Download Info:
-          ===========================
-          Version: {{ obs_version }}
-          Download URL: {{ obs_download_url }}
+        msg: "OBS Studio {{ obs_version }} download URL: {{ obs_download_url }}"
 
     - name: "Download OBS Studio portable"
       win_get_url:
@@ -101,12 +93,7 @@
 
     - name: "Debug OBS executable locations"
       debug:
-        msg: |
-          Found OBS executables:
-          {% for file in obs_exe_locations.files %}
-          - {{ file.path }}
-          - Directory: {{ file.path | dirname }}
-          {% endfor %}
+        msg: "Found {{ obs_exe_locations.files | length }} OBS executables"
 
     - name: "Create portable_mode.txt in root of each OBS installation"
       win_copy:
@@ -129,12 +116,7 @@
 
     - name: "Display portable mode verification"
       debug:
-        msg: |
-          📝 Portable Mode Files Created:
-          {% for file in portable_mode_verification.files %}
-          - {{ file.path }}
-          {% endfor %}
-          Total portable_mode.txt files: {{ portable_mode_verification.files | length }}
+        msg: "Created {{ portable_mode_verification.files | length }} portable_mode.txt files"
 
     - name: "Get Desktop path"
       win_shell: |
@@ -159,12 +141,7 @@
 
     - name: "Display shortcut creation summary"
       debug:
-        msg: |
-          Desktop Shortcuts Created:
-          {% for profile in obs_config.installation_directories %}
-          - OBS ({{ profile }})
-          {% endfor %}
-          Total shortcuts: {{ obs_config.installation_directories | length }}
+        msg: "Created {{ obs_config.installation_directories | length }} desktop shortcuts for OBS profiles"
 
     - name: "Clean up downloaded zip file"
       win_file:
@@ -174,24 +151,7 @@
 
     - name: "Display OBS installation summary"
       debug:
-        msg: |
-          🎥 OBS Studio Installation Summary:
-          ==================================
-          Version: {{ obs_version }}
-          Installations Created: {{ obs_exe_locations.files | length }}
-          Portable Mode Files: {{ portable_mode_verification.files | length }}
-          
-          📁 Portable OBS Locations:
-          {% for file in obs_exe_locations.files %}
-          - {{ file.path | dirname | replace(obs_config.target_base_directory + '\\', '') }}
-          {% endfor %}
-          
-          ✅ OBS Studio portable installations completed!
-          
-          📝 Usage:
-          - Each installation is completely portable
-          - Launch obs64.exe from any directory to use that configuration
-          - Streaming/Recording/Testing have separate settings and profiles
+        msg: "OBS Studio {{ obs_version }} installed - {{ obs_exe_locations.files | length }} portable installations created with {{ portable_mode_verification.files | length }} portable mode files"
 
     # Plugin Installation Block
     - name: "OBS Plugin Installation Block"
@@ -208,32 +168,11 @@
 
         - name: "Display plugin installation summary"
           debug:
-            msg: |
-              OBS Plugin Installation Summary:
-              ================================
-              {% for profile in obs_config.installation_directories %}
-              {% if obs_plugins[profile] is defined %}
-              {{ profile }} Profile:
-              {% for plugin in obs_plugins[profile] %}
-              - {{ plugin.name }}
-              {% endfor %}
-              {% endif %}
-              {% endfor %}
-              
-              [OK] Plugin installations completed!
+            msg: "OBS plugin installation completed for all profiles"
 
   when: not obs_already_installed
 
 - name: "Display OBS skip summary"
   debug:
-    msg: |
-      🎥 OBS Studio Installation (Skipped):
-      ====================================
-      ✅ OBS installations already exist - no action needed!
-      
-      📁 Existing OBS Locations:
-      - C:/Tools/Streaming
-      - C:/Tools/Recording  
-      - C:/Tools/Testing
-      
-      📝 All installations are portable and ready to use 
+    msg: "OBS installations already exist - skipping installation"
+  when: obs_already_installed 

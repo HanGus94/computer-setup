@@ -200,12 +200,5 @@
 
 - name: "Display Scoop installation summary"
   debug:
-    msg: |
-      📦 Scoop Installation Summary:
-      =============================
-      Buckets: extras, versions
-      Packages: {{ scoop.packages | map(attribute='name') | join(', ') }}
-      Installation: Global (system-wide)
-      
-      ✅ Scoop package installation completed!
+    msg: "Scoop installation completed - Buckets: extras, versions, Packages: {{ scoop.packages | map(attribute='name') | join(', ') }}, Installation: Global"
   tags: [scoop, software] 

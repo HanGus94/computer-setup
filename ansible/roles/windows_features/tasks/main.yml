@@ -102,16 +102,5 @@
 
 - name: "Display Windows features summary"
   debug:
-    msg: |
-      🪟 Windows Features Summary:
-      ===========================
-      Hyper-V: {{ features_summary.hyperv_enabled }} features enabled
-      Windows Sandbox: {{ features_summary.sandbox_enabled }} features enabled
-      WSL2: {{ features_summary.wsl2_enabled }} features enabled
-      
-      {% if features_require_reboot %}
-      ⚠️  Some features require a system reboot to complete installation
-      {% endif %}
-      
-      ✅ Windows features configuration completed!
+    msg: "Windows features configuration completed - Hyper-V: {{ features_summary.hyperv_enabled }}, Windows Sandbox: {{ features_summary.sandbox_enabled }}, WSL2: {{ features_summary.wsl2_enabled }}{{ ', Reboot required' if features_require_reboot else '' }}"
   when: install_categories.windows_features | default(true) 

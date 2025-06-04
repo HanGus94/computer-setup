@@ -56,17 +56,7 @@
 
 - name: "Display Ultimate Performance enablement result"
   debug:
-    msg: |
-      Ultimate Performance power plan enablement result:
-      {% if enable_ultimate_result.rc == 0 %}
-      ✅ Successfully enabled Ultimate Performance power plan
-      New GUID: {{ enable_ultimate_result.stdout.strip() }}
-      Extracted GUID: {{ new_ultimate_guid | default('Not extracted') }}
-      {% else %}
-      ❌ Failed to enable Ultimate Performance power plan
-      Error: {{ enable_ultimate_result.stderr | default('Unknown error') }}
-      Note: This may be normal on devices with locked power subsystems (e.g., Surface devices)
-      {% endif %}
+    msg: "{{ 'Ultimate Performance enabled with new GUID: ' + enable_ultimate_result.stdout.strip() if enable_ultimate_result.rc == 0 else 'Failed to enable Ultimate Performance: ' + (enable_ultimate_result.stderr | default('Unknown error')) }}"
   when: 
     - install_categories.power_management | default(true)
     - enable_ultimate_result is defined
@@ -83,12 +73,7 @@
 
 - name: "Debug GUID selection"
   debug:
-    msg: |
-      GUID Selection Debug:
-      - Power plan: {{ power_management.power_plan }}
-      - Original GUID: {{ power_plan_guids[power_management.power_plan] }}
-      - New Ultimate GUID: {{ new_ultimate_guid | default('Not available') }}
-      - Selected target GUID: {{ target_power_guid }}
+    msg: "Using {{ power_management.power_plan }} GUID: {{ target_power_guid }} {{ '(newly created)' if new_ultimate_guid is defined else '(existing)' }}"
   when: 
     - install_categories.power_management | default(true)
     - target_power_guid is defined
@@ -120,47 +105,5 @@
 
 - name: "Display power management summary"
   debug:
-    msg: |
-      🔋 Power Management Summary:
-      ============================
-      Target Power Plan: {{ power_management.power_plan | title | replace('_', ' ') }}
-      Target GUID: {{ target_power_guid | default('Unknown') }}
-      {% if power_management.power_plan == "ultimate_performance" and new_ultimate_guid is defined %}
-      📄 Ultimate Performance was duplicated with new GUID: {{ new_ultimate_guid }}
-      {% elif power_management.power_plan == "ultimate_performance" and ultimate_performance_exists | default(false) %}
-      📄 Ultimate Performance already existed - using original GUID
-      {% endif %}
-      
-      {% if plan_already_active | default(false) and not (power_management.force_set | default(false)) %}
-      ✅ Power plan was already active - no change needed
-      {% elif set_power_plan_result is defined and set_power_plan_result.rc == 0 %}
-      ✅ Power plan set successfully!
-      {% elif set_power_plan_result is defined and set_power_plan_result.rc != 0 %}
-      ❌ Failed to set power plan
-      Error: {{ set_power_plan_result.stderr | default('Unknown error') }}
-      {% endif %}
-      
-      {% if verify_power_scheme is defined %}
-      Current Active Scheme: {{ verify_power_scheme.stdout.strip() }}
-      {% endif %}
-      
-      📝 Power Plan Benefits:
-      {% if power_management.power_plan == "ultimate_performance" %}
-      • Maximum performance with disabled CPU frequency scaling
-      • Disabled core parking for consistent performance
-      • Optimized for workstations and high-performance tasks
-      • May increase power consumption
-      {% elif power_management.power_plan == "high_performance" %}
-      • High performance with maximum CPU utilization
-      • Reduced power saving features
-      • Better for performance-critical applications
-      {% elif power_management.power_plan == "balanced" %}
-      • Automatic balance between performance and power saving
-      • CPU frequency scaling based on demand
-      • Default recommended setting for most users
-      {% elif power_management.power_plan == "power_saver" %}
-      • Maximum power savings with reduced performance
-      • Aggressive CPU frequency scaling
-      • Best for battery life on mobile devices
-      {% endif %}
+    msg: "Power plan {{ power_management.power_plan | title | replace('_', ' ') }} {{ 'was already active' if plan_already_active | default(false) and not (power_management.force_set | default(false)) else ('set successfully' if set_power_plan_result is defined and set_power_plan_result.rc == 0 else 'failed to set') }}"
   when: install_categories.power_management | default(true) 

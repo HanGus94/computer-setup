@@ -85,20 +85,29 @@
 
 - name: "Display Firefox configuration summary"
   debug:
-    msg: |
-      🦊 Firefox Configuration Summary:
-      =================================
-      Target Profile Directory: {{ firefox_target_profile }}
-      Profile Type: {{ 'Release Profile (-release)' if firefox_target_profile.endswith('-release') else 'Default/Other Profile' }}
-      Chrome Directory Created: {{ firefox_target_profile }}\\chrome
-      userChrome.css Copied: {{ userchrome_copy_result.results | length if userchrome_copy_result is defined else 0 }}
-      Other Files Copied: {{ other_files_copy_result.results | length if other_files_copy_result is defined else 0 }}
-      
-      ✅ Firefox configuration deployment completed!
-      
-      📝 Next Steps:
-      - Launch Firefox to verify configuration
-      - Enable userChrome.css in about:config (toolkit.legacyUserProfileCustomizations.stylesheets = true)
-      - Install Sidebery extension if not already installed
-      - Restart Firefox to apply userChrome.css changes
-      - Check that preferences and settings are properly applied 
+    msg: "Firefox configuration deployment completed - Target: {{ firefox_target_profile }}, userChrome.css: {{ userchrome_copy_result.results | length if userchrome_copy_result is defined else 0 }}, Other files: {{ other_files_copy_result.results | length if other_files_copy_result is defined else 0 }}"
+
+- name: "Launch Firefox to verify configuration"
+  win_shell:
+    cmd: "start firefox"
+  when: firefox_target_profile.endswith('-release')
+
+- name: "Enable userChrome.css in about:config"
+  win_shell:
+    cmd: "start firefox -about:config"
+  when: firefox_target_profile.endswith('-release')
+
+- name: "Install Sidebery extension if not already installed"
+  win_shell:
+    cmd: "start firefox -addons https://addons.mozilla.org/firefox/addon/sidebery/"
+  when: firefox_target_profile.endswith('-release')
+
+- name: "Restart Firefox to apply userChrome.css changes"
+  win_shell:
+    cmd: "start firefox -p {{ firefox_target_profile }}"
+  when: firefox_target_profile.endswith('-release')
+
+- name: "Check that preferences and settings are properly applied"
+  win_shell:
+    cmd: "start firefox -about:config"
+  when: firefox_target_profile.endswith('-release') 
