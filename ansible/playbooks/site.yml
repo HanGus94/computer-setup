@@ -45,6 +45,30 @@
         - software
         - chocolatey
     
+    # Wait for potential WaveLink reboot
+    - name: "Wait for system to come back online after potential WaveLink reboot"
+      wait_for_connection:
+        delay: 30          # Wait 30 seconds before first check (system needs time to actually reboot)
+        timeout: 300       # Wait up to 5 minutes total
+        sleep: 5           # Check every 5 seconds
+      tags:
+        - software
+        - chocolatey
+        - reboot
+      ignore_errors: yes  # Don't fail if no reboot actually occurred
+    
+    # Verify system is responsive after potential reboot
+    - name: "Verify Windows is fully responsive after potential reboot"
+      win_shell: "Write-Output 'System ready'"
+      register: system_ready_check
+      until: system_ready_check is succeeded
+      retries: 6         # Try 6 times
+      delay: 10          # Wait 10 seconds between retries
+      tags:
+        - software
+        - chocolatey
+        - reboot
+    
     # Scoop Package Installation
     - name: "Install Scoop and Scoop-only Packages (Admin Mode)"
       include_role:
