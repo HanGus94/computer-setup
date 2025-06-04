@@ -44,6 +44,16 @@
     - not (ultimate_performance_exists | default(false))
   failed_when: false
 
+- name: "Extract new Ultimate Performance GUID (if duplicated)"
+  set_fact:
+    new_ultimate_guid: "{{ enable_ultimate_result.stdout.strip() | regex_replace('.*([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}).*', '\\1') }}"
+  when: 
+    - install_categories.power_management | default(true)
+    - enable_ultimate_result is defined
+    - enable_ultimate_result.rc == 0
+    - enable_ultimate_result.stdout is defined
+    - enable_ultimate_result.stdout.strip() | regex_search('[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}')
+
 - name: "Display Ultimate Performance enablement result"
   debug:
     msg: |
@@ -51,6 +61,7 @@
       {% if enable_ultimate_result.rc == 0 %}
       ✅ Successfully enabled Ultimate Performance power plan
       New GUID: {{ enable_ultimate_result.stdout.strip() }}
+      Extracted GUID: {{ new_ultimate_guid | default('Not extracted') }}
       {% else %}
       ❌ Failed to enable Ultimate Performance power plan
       Error: {{ enable_ultimate_result.stderr | default('Unknown error') }}
@@ -63,12 +74,28 @@
 
 - name: "Get target power plan GUID"
   set_fact:
-    target_power_guid: "{{ power_plan_guids[power_management.power_plan] }}"
+    target_power_guid: >-
+      {{
+        new_ultimate_guid if (power_management.power_plan == "ultimate_performance" and new_ultimate_guid is defined)
+        else power_plan_guids[power_management.power_plan]
+      }}
   when: install_categories.power_management | default(true)
+
+- name: "Debug GUID selection"
+  debug:
+    msg: |
+      GUID Selection Debug:
+      - Power plan: {{ power_management.power_plan }}
+      - Original GUID: {{ power_plan_guids[power_management.power_plan] }}
+      - New Ultimate GUID: {{ new_ultimate_guid | default('Not available') }}
+      - Selected target GUID: {{ target_power_guid }}
+  when: 
+    - install_categories.power_management | default(true)
+    - target_power_guid is defined
 
 - name: "Check if target power plan is already active"
   set_fact:
-    plan_already_active: "{{ target_power_guid in current_power_scheme.stdout }}"
+    plan_already_active: "{{ target_power_guid | lower in current_power_scheme.stdout | lower }}"
   when: 
     - install_categories.power_management | default(true)
     - current_power_scheme.stdout is defined
@@ -98,6 +125,11 @@
       ============================
       Target Power Plan: {{ power_management.power_plan | title | replace('_', ' ') }}
       Target GUID: {{ target_power_guid | default('Unknown') }}
+      {% if power_management.power_plan == "ultimate_performance" and new_ultimate_guid is defined %}
+      📄 Ultimate Performance was duplicated with new GUID: {{ new_ultimate_guid }}
+      {% elif power_management.power_plan == "ultimate_performance" and ultimate_performance_exists | default(false) %}
+      📄 Ultimate Performance already existed - using original GUID
+      {% endif %}
       
       {% if plan_already_active | default(false) and not (power_management.force_set | default(false)) %}
       ✅ Power plan was already active - no change needed
