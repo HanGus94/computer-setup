@@ -18,7 +18,7 @@
 
 - name: "Find PowerShell configuration files on controller"
   find:
-    paths: "{{ powershell_config.profile_source }}"
+    paths: "{{ role_path }}/{{ powershell_config.profile_source }}"
     patterns: "*.ps1"
     recurse: no
   register: powershell_files
@@ -34,7 +34,7 @@
 
 - name: "Find additional PowerShell configuration files on controller"
   find:
-    paths: "{{ powershell_config.profile_source }}"
+    paths: "{{ role_path }}/{{ powershell_config.profile_source }}"
     patterns: "*"
     file_type: file
     excludes: "*.ps1"
@@ -56,13 +56,13 @@
 
 - name: "Check if main PowerShell profile exists"
   stat:
-    path: "{{ powershell_config.profile_source }}/Microsoft.PowerShell_profile.ps1"
+    path: "{{ role_path }}/{{ powershell_config.profile_source }}/Microsoft.PowerShell_profile.ps1"
   register: main_profile_check
   delegate_to: localhost
 
 - name: "Set PowerShell profile as main profile"
   win_copy:
-    src: "{{ powershell_config.profile_source }}/Microsoft.PowerShell_profile.ps1"
+    src: "{{ role_path }}/{{ powershell_config.profile_source }}/Microsoft.PowerShell_profile.ps1"
     dest: "{{ powershell_documents_path.stdout | trim }}\\Microsoft.PowerShell_profile.ps1"
     backup: yes
   register: main_profile_result

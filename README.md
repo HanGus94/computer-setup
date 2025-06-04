@@ -23,11 +23,12 @@ ansible-galaxy collection list | grep -E "(chocolatey|ansible.windows|community.
 ```
 
 ### Windows Target Machine
-1. **Run the setup script as Administrator**:
+1. **Run the SSH setup script as Administrator**:
    ```powershell
    # On Windows target machine
    .\setup-remoting.ps1
    ```
+   This script configures OpenSSH Server for Ansible connectivity.
 
 2. **Supported Windows Versions**:
    - Windows 10 version 1809 (build 17763) or later
@@ -51,12 +52,15 @@ ansible/
 │   ├── scoop/                  # User-level CLI packages  
 │   ├── windows_features/       # Windows optional features
 │   ├── powershell_config/      # PowerShell profile deployment
+│   │   └── files/              # PowerShell configuration files
 │   ├── obs_config/            # OBS Studio configuration
 │   └── firefox_config/        # Firefox settings deployment
+│       └── files/              # Firefox configuration files
 ├── inventory/
 │   └── hosts.yml              # SSH connection configuration
 └── group_vars/
     └── all.yml               # Global variables and package lists
+setup-remoting.ps1              # Windows SSH setup script
 ```
 
 ## ⚙️ Configuration

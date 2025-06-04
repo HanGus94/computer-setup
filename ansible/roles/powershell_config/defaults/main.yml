@@ -4,7 +4,7 @@
 
 # PowerShell Configuration
 powershell_config:
-  profile_source: "../../configs/powershell/"
+  profile_source: "files/"
   profile_destination: "Documents/PowerShell/"
   copy_all_files: true
 

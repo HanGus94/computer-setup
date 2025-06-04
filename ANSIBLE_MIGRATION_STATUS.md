@@ -128,4 +128,53 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags "scoop" --ask-
 
 # Configuration only
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags "config" --ask-vault-pass
+```
+
+## ✅ Repository Cleanup Completed
+
+### Files Successfully Deleted
+- [x] `setup.ps1` - Legacy PowerShell bootstrap script
+- [x] `deploy-files.ps1` - Legacy PowerShell deployment script  
+- [x] `modules/` directory - PowerShell module (ComputerSetup.psm1)
+- [x] `installers/` directory - All PowerShell installation scripts
+- [x] `configs/` directory - Configuration files (moved to roles)
+
+### Files Kept for Client Setup
+- [x] `setup-remoting.ps1` - Essential for configuring SSH on Windows target machines
+
+### Files Successfully Moved
+- [x] `configs/powershell/Microsoft.PowerShell_profile.ps1` → `ansible/roles/powershell_config/files/`
+- [x] `configs/firefox/userChrome.css` → `ansible/roles/firefox_config/files/`
+- [x] `configs/firefox/sidebery-data.json` → `ansible/roles/firefox_config/files/`
+
+## 🎯 Final Repository Structure
+
+```
+computer-setup/
+├── ansible/                              # Complete Ansible automation
+│   ├── roles/
+│   │   ├── powershell_config/
+│   │   │   ├── files/                    # ✅ PowerShell config files
+│   │   │   │   └── Microsoft.PowerShell_profile.ps1
+│   │   │   ├── defaults/main.yml         # ✅ Updated paths
+│   │   │   └── tasks/main.yml            # ✅ Updated file references
+│   │   ├── firefox_config/
+│   │   │   ├── files/                    # ✅ Firefox config files
+│   │   │   │   ├── userChrome.css
+│   │   │   │   └── sidebery-data.json
+│   │   │   ├── defaults/main.yml         # ✅ Updated paths
+│   │   │   └── tasks/main.yml            # ✅ Updated file references
+│   │   ├── chocolatey/
+│   │   ├── scoop/
+│   │   ├── windows_features/
+│   │   └── obs_config/
+│   ├── playbooks/site.yml
+│   ├── inventory/hosts.yml
+│   ├── group_vars/all.yml
+│   └── ansible.cfg
+├── setup-remoting.ps1                    # ✅ Windows SSH setup script (kept)
+├── winget-to-chocolatey-mapping.txt      # Reference documentation
+├── ansible-controller-requirements.txt   # Ansible setup requirements
+├── README.md                             # ✅ Updated for Ansible-only
+└── ANSIBLE_MIGRATION_STATUS.md           # This file (completed)
 ``` 

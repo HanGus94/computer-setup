@@ -4,7 +4,7 @@
 
 # Firefox Configuration
 firefox_config:
-  source_directory: "../../configs/firefox/"
+  source_directory: "files/"
   copy_configs: true
 
 # Installation Categories (for selective installation)

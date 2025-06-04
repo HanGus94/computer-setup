@@ -52,7 +52,7 @@
 
 - name: "Find Firefox configuration files on controller"
   find:
-    paths: "{{ firefox_config.source_directory }}"
+    paths: "{{ role_path }}/{{ firefox_config.source_directory }}"
     file_type: file
     recurse: yes
   register: firefox_config_files
